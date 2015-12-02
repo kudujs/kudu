@@ -1,0 +1,14 @@
+{
+  "name": "kudu-examples",
+  "description": "Kudu Examples",
+  "version": "0.0.1",
+  "dependencies": {},
+  "devDependencies": {
+    "commander": "^2.9.0",
+    "fs-extra": "^0.26.2",
+    "glob": "^6.0.1",
+    "node-version-assets": "^1.0.1",
+    "nodejs-config": "^1.0.1",
+    "requirejs": "^2.1.22"
+  }
+}
