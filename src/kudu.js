@@ -744,14 +744,14 @@ define(function (require) {
 		function onInitComplete() {
 			callstack.splice(0, 1);
 			if (callstack.length === 0) {
-				console.log("AT 0");
+				//console.log("AT 0");
 
 				// Delay switching on animation incase user is still clicking furiously
 				reenableAnimationTracker.enable = false;
 				reenableAnimationTracker = {enable: true};
 				reenableAnimations(reenableAnimationTracker);
 			} else {
-				console.log("AT ", callstack.length);
+				//console.log("AT ", callstack.length);
 			}
 		}
 

@@ -477,7 +477,6 @@ define(function (require) {
 			router.activeRoute = route;
 
 			// Load the route's module
-			console.log("route", route);
 
 			if (route.ctrl == null) {
 
@@ -505,7 +504,6 @@ define(function (require) {
 		//
 		// Note: The URL must contain the protocol like 'http(s)://'
 		urlPath: function (url) {
-			//console.log("URL", url);
 			// Check the cache to see if we've already parsed this URL
 			if (typeof (cachedUrlPaths[url]) !== 'undefined') {
 				return cachedUrlPaths[url];
