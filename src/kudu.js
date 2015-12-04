@@ -101,7 +101,7 @@ define(function (require) {
 			}			
 		};
 
-		that.route = function (options) {
+		that.go = function (options) {
 			router.go(options);
 		};
 

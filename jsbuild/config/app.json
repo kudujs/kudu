@@ -1,5 +1,6 @@
 {
     "version": "0.0.1",
     "name": "kudu",
-    "dist": "../dist"
+    "dist": "../dist",
+    "template": "../../java-template/web/src/js/lib"
 }
