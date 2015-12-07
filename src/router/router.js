@@ -43,11 +43,13 @@ define(function (require) {
 	// routes - All registered routes
 	var routes = [];
 
-	var routesByPath = {};
+	var routesById = {};
 
 	var unknownRouteResolver;
 
 	var defaultRoute;
+
+	var unknownRoute;
 
 	var noop = function () {
 	};
@@ -145,22 +147,32 @@ define(function (require) {
 
 				route.moduleId = route.ctrl.id;
 			}
-			router.addRouteByPath(route);
+			router.addRouteById(route);
 			return router;
 		},
 		addRouteAt: function (index, route) {
 			routes.splice(index, 0, route);
-			router.addRouteByPath(route);
+			router.addRouteById(route);
 			return router;
 		},
-		addRouteByPath: function (route) {
-			routesByPath[route.moduleId] = route.path;
+		addRouteById: function (route) {
+
+			if (route.path === '*') {
+				unknownRoute = route;
+			}
+
+			// Multiple paths can be mapped to same route, so we use array
+			if (routesById[route.moduleId] === undefined) {
+				routesById[route.moduleId] = [];
+			}
+
+			routesById[route.moduleId].push(route.path);
 		},
 		getRoutes: function () {
 			return routes;
 		},
-		getRoutesByPath: function () {
-			return routesByPath;
+		getRoutesById: function () {
+			return routesById;
 		},
 		// router.on(eventName, eventHandler([arg1, [arg2]]) {}) - Register an event handler
 		//
@@ -205,19 +217,18 @@ define(function (require) {
 			options.args = options.args || {};
 			options.routeParams = options.routeParams || {};
 
-			if (options.updateRoute === false) {
+			if (options.updateUrl === false) {
 				var tempRoute = {};
 				tempRoute.moduleId = moduleId;
 				tempRoute.ctrl = ctrl;
 				options.route = tempRoute;
 
-				var newHash = router.hashPath(currentHash);
-				newHash = appendHashParams(newHash, options.routeParams);
-				setIgnoreHashChangeOnce(newHash);
-				router.setHash(newHash);
+				var tmpHash = router.hashPath(currentHash);
+				tmpHash = appendHashParams(tmpHash, options.routeParams);
+				setIgnoreHashChangeOnce(tmpHash);
+				router.setHash(tmpHash);
 				router.loadModule(options);
 				return;
-
 			}
 
 			var route = null;
@@ -240,10 +251,25 @@ define(function (require) {
 					console.error("    ", debugRoute.path);
 				}
 				console.error("RouteParams used to match available Controller routes:", options.routeParams);
+
+				if (options.force) {
+					console.error("options.force is true: will attempt to load the controller from moduleId: '" + moduleId + "'");
+
+				} else {
+					options.route = unknownRoute;
+					if (options.route == null) {
+						options.route = {};
+					}
+					router.loadModule(options);
+					return;
+
+				}
 			}
 
 			// Set routePath, if route is null use moduleId
 			var routePath = route != null ? route.path : moduleId;
+			//routePath = stripLeadingSlash(routePath);
+
 
 			// TODO instead of throwing error for unsupported paths, we could remove the hash from the url and still render the Controller
 			if (routePath instanceof RegExp) {
@@ -290,7 +316,7 @@ define(function (require) {
 									+ routePathKey + "' but the only params provided are '" + JSON.stringify(routeParams) + "'");
 						}
 
-						newHash = newHash + '/' + routeParamValue;
+						newHash = appendUrlSegment(newHash, routeParamValue);
 
 						// We have added the routeParam value. Delete the route parameter so it is not included in the query parameters below
 						delete routeParams[routePathKey];
@@ -299,15 +325,15 @@ define(function (require) {
 
 					} else {
 						// This is a normal path segment, so append to newHash
-						newHash = newHash + '/' + routePathSegment;
+						newHash = appendUrlSegment(newHash, routePathSegment);
 					}
 				}
 			}
 
 			// strip leading '/' if present
-			if (newHash.indexOf('/') === 0) {
-				newHash = newHash.substr(1);
-			}
+			/* if (newHash.indexOf('/') === 0) {
+			 newHash = newHash.substr(1);
+			 }*/
 
 			// add parameters to newHash
 
@@ -372,6 +398,7 @@ define(function (require) {
 			return result;
 		},
 		testCtrlRoute: function (routePath, viewParams) {
+			routePath = stripLeadingSlash(routePath);
 
 			var routeParams = router.parseRouteParams(routePath);
 
@@ -462,6 +489,7 @@ define(function (require) {
 				if (options.route.moduleId == null || options.route.path == null) {
 					throw new Error("unknownRouteResolver must return a route object with a valid moduleId and path or a promise that resolves to a route object!");
 				}
+
 				options.route.isNew = true;
 				router.loadModule(options);
 			}
@@ -472,15 +500,14 @@ define(function (require) {
 			// Replace router.activeRoute with this route
 			var route = options.route;
 
-			router.activeRoute.active = false;
-			route.active = true;
-			router.activeRoute = route;
-
 			// Load the route's module
 
 			if (route.ctrl == null) {
 
 				require([route.moduleId], function (module) {
+					if (module == null) {
+						return;
+					}
 
 					router.processLoadedModule(options, module, route);
 
@@ -540,6 +567,9 @@ define(function (require) {
 			return path;
 		},
 		processLoadedModule: function (options, module, route) {
+			router.activeRoute.active = false;
+			route.active = true;
+			router.activeRoute = route;
 
 			// Register newly discovered routes
 			if (route.isNew) {
@@ -575,7 +605,10 @@ define(function (require) {
 			// Example path = '/example/path'
 			// Example route: `exampleRoute: {path: '/example/*', moduleId: 'example/exampleView'}`
 			var urlPath = router.urlPath(options.url || window.location.href);
+			urlPath = stripLeadingSlash(urlPath);
+
 			var routePath = options.route.path;
+			routePath = stripLeadingSlash(routePath);
 
 			// If the path is an exact match then the route is a match
 			if (routePath === urlPath) {
@@ -646,7 +679,9 @@ define(function (require) {
 
 			// If we get here the url path segments matches the route path segments. Next we check the query parameters, if there are any
 			if (routePathQuestionIndex !== -1) {
-				var routeQueryParamsStr = options.route.path.substr(routePathQuestionIndex + 1);
+				var tmpRoutePath = options.route.path;
+				tmpRoutePath = stripLeadingSlash(tmpRoutePath);
+				var routeQueryParamsStr = tmpRoutePath.substr(routePathQuestionIndex + 1);
 
 				var routeParams = router.parseRouteQueryParams(routeQueryParamsStr);
 
@@ -692,6 +727,7 @@ define(function (require) {
 				url = window.location.href;
 			var args = {};
 			var urlPath = router.urlPath(url);
+			urlPath = stripLeadingSlash(urlPath);
 
 			// Example pathSegments = ['', example', 'path']
 			var urlPathSegments = urlPath.split('/');
@@ -699,7 +735,9 @@ define(function (require) {
 			// Example routePathSegments = ['', 'example', '*']
 			var routePathSegments = [];
 			if (route && route.path && !(route.path instanceof RegExp)) {
-				routePathSegments = route.path.split('/');
+				var routePath = route.path;
+				routePath = stripLeadingSlash(routePath);
+				routePathSegments = routePath.split('/');
 			}
 
 			// Get path variables
@@ -923,12 +961,19 @@ define(function (require) {
 		}
 
 		var path = router.urlPath(window.location.href);
+		path = stripLeadingSlash(path);
 
-		if (path.indexOf("/") === 0) {
-			path = path.substr(1);
-		}
+		/*
+		 if (path.indexOf("/") === 0) {
+		 path = path.substr(1);
+		 }*/
 
 		require([path], function (module) {
+			if (module == null) {
+				deferred.reject();
+				return;
+			}
+
 			var newRoute = {
 				path: path,
 				ctrl: module,
@@ -945,7 +990,6 @@ define(function (require) {
 	}
 
 	function appendHashParams(hash, params) {
-		// TODO check for existing params on hash
 
 		if (params != null) {
 			var paramStr = $.param(params, true);
@@ -966,10 +1010,30 @@ define(function (require) {
 		return hash;
 	}
 
+	function stripLeadingSlash(str) {
+		if (typeof str === "string") {
+			if (str.indexOf("/") === 0) {
+				return str.slice(1);
+			}
+		}
+		return str;
+	}
+
 	function setIgnoreHashChangeOnce(newHash) {
 		if (currentHash != newHash) {
 			ignoreHashChangeOnce = true;
 		}
+	}
+
+	function appendUrlSegment(url, segment) {
+		if (url.length > 0 && url !== '/') {
+			url = url + '/';
+		}
+		if (segment.length == 0) {
+			segment = "/";
+		}
+		url = url + segment;
+		return url;
 	}
 
 	// Return the router

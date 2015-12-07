@@ -591,8 +591,8 @@ view:          // a reference to the view that is going to be removed
 }
 ```
 
-Gobal events
-------------
+Global events
+-------------
 
 You can subscribe to global events fired by kudu as follows:
 
@@ -683,4 +683,32 @@ define(function (require) {
         }
         return homeCtrl;
     });
+```
+
+Kudu API
+--------
+
+Kudu.go(options)
+----------------
+
+Kudu.go() provides programmatic navigation between views.
+
+```javascript
+var homeCtrl = require("home");
+var kudu = ...
+
+kudu.go({ctrl: homeCtrl});
+```
+
+go() accepts the following options:
+```javascript
+var options = {
+    ctrl: // controller module
+    id: // the controller module ID or path to the module
+    routeParams: // the url parameters (an object) to pass to the route. The parameters will be appended to the browser's url hash object.
+    args: // the arguments (an object) to pass to the route. 
+    force: // true/false, force navigating to module even if there is no matching route specified
+    updateUrl: // true/false, specifies whether the browser's URL hash should be updated to the controller we are navigating to.
+}
+
 ```
