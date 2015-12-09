@@ -588,11 +588,13 @@ define(function (require) {
 					urlParams = router.routeArguments(route, window.location.href);
 					options.urlParams = urlParams;
 				}
+
 				var routerOptions = {
 					routeParams: urlParams,
 					module: module,
 					args: options.args,
-					route: route
+					route: route,
+					target: options.target
 				};
 				router.fire('routeload', routerOptions);
 			}

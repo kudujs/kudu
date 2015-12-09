@@ -108,6 +108,10 @@ define(function (require) {
 		that.getDefaultTarget = function () {
 			return initOptions.target;
 		};
+		
+		that.getActiveRoute = function () {
+			return currentMVC.route;
+		};
 
 		that.routeLoaded = function (options) {
 
