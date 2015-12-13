@@ -589,13 +589,11 @@ define(function (require) {
 					options.urlParams = urlParams;
 				}
 
-				var routerOptions = {
-					routeParams: urlParams,
-					module: module,
-					args: options.args,
-					route: route,
-					target: options.target
-				};
+				var routerOptions = $.extend({}, options);
+				routerOptions.routeParams = urlParams;
+				routerOptions.module = module;
+				routerOptions.route = route;
+
 				router.fire('routeload', routerOptions);
 			}
 		},

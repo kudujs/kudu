@@ -626,7 +626,9 @@ The following options are passed to the events:
 
 ```javascript
 options = {
-    prevCtrl     : // previous controller which is being removed
+    initialRoute: // true if this is the first route loaded, false otherwise. Useful if you need to know if the application loaded for
+                  // the first time or if a route changed.
+    prevCtrl    : // previous controller which is being removed
     newCtrl     : // new controller being added
     isMainCtrl  : // (experimental) true if the new controller replaces the main view eg.
                   // the target 
@@ -709,6 +711,29 @@ var options = {
     args: // the arguments (an object) to pass to the route. 
     force: // true/false, force navigating to module even if there is no matching route specified
     updateUrl: // true/false, specifies whether the browser's URL hash should be updated to the controller we are navigating to.
+    [globalEventName]: // a function that will be called for the specified event eg: viewBeforeInit, viewInit, viewRender, viewBeforeUnrender, 
+                       // viewUnrender, viewFail
 }
 
+```
+
+Example global events
+---------------------
+
+```javascript
+var $ = require("jquery");
+var kudu = require("kudu");
+
+// register global event
+$(kudu).on("viewRender", function(options) {
+...
+});
+
+// register local, once off event for the go call
+kudu.go({
+    ctrl: home,
+    viewRender: function(options) {
+    ...
+    }
+});
 ```

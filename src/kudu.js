@@ -70,6 +70,11 @@ define(function (require) {
 			  Ractive.DEBUG = initOptions.debug;
 
 			router.on('routeload', function (routeOptions) {
+				if (that.getActiveRoute() == null) {
+					routeOptions.initialRoute = true;
+				} else {
+					routeOptions.initialRoute = false;
+				}
 				that.routeLoaded(routeOptions);
 			});
 
@@ -272,10 +277,17 @@ define(function (require) {
 				isMainCtrl: isMainCtrlReplaced,
 				ctrlOptions: options,
 				eventName: eventName,
-				error: options.error
+				error: options.error,
+				initialRoute: options.initialRoute
 			};
 
 			$(that).trigger(eventName, [triggerOptions]);
+			
+			if (options[eventName]) {
+				options[eventName](triggerOptions);
+				
+			}
+
 		};
 
 		function processOnInit(options) {
