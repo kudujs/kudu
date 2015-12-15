@@ -1,13 +1,12 @@
 // Events order
 //    RACTIVE  -> CTRL       => GLOBAL EVENT
-//			   ->            => viewBeforeInit
-//			   -> onInit     => viewInit
-//   render    -> onRender   => viewRender
-//   complete  -> onComplete => viewComplete
-//             -> onRemove
-//                           => viewBeforeUnrender
-//   unrender  -> onUnrender => viewUnrender
-//   teardown
+//                           => viewBeforeUnrender (old view)
+//			   ->            => viewBeforeInit     (new view)
+//			   -> onInit     => viewInit           (new view)
+//   unrender  -> onUnrender => viewUnrender       (old view)
+//   render    -> onRender   => viewRender         (new view)
+//   complete  -> onComplete => viewComplete       (new view)
+//             -> onRemove                         (old view)
 //   
 //   -----
 // viewFail - should this event be supported?
