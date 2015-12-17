@@ -14,10 +14,13 @@ define(function (require) {
 		}
 
 		var viewOptions = {
+			ctrl: options.ctrl,
+			route: options.route,
 			routeParams: options.routeParams,
 			args: options.args,
 			view: options.view,
-			ajaxTracker: options.ajaxTracker
+			ajaxTracker: options.ajaxTracker,
+			next: options.next
 		};
 
 		var booleanOrPromise = options.ctrl.onRemove(viewOptions);
@@ -28,7 +31,7 @@ define(function (require) {
 		}
 
 		if (booleanOrPromise == false) {
-			deferred.reject("controller " + + "onRemove returned false");
+			deferred.reject("controller " + "onRemove returned false");
 			return promise;
 		}
 

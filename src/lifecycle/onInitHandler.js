@@ -3,7 +3,7 @@ define(function (require) {
 	var $ = require("jquery");
 
 	function onInitHandler(options) {
-		
+
 		var deferred = $.Deferred();
 		var promise = deferred.promise();
 
@@ -13,21 +13,24 @@ define(function (require) {
 		}
 
 		var viewOptions = {
+			ctrl: options.ctrl,
+			route: options.route,
 			routeParams: options.routeParams,
 			args: options.args,
-			ajaxTracker: options.ajaxTracker
+			ajaxTracker: options.ajaxTracker,
+			prev: options.prev
 		};
 
 		var ractiveFnOrPromise = options.ctrl.onInit(viewOptions);
-		
+
 		deferred.resolve(ractiveFnOrPromise);
-		
+
 		/*
-		if (options.createView) {
-			promise = options.createView(options);
-		} else {
-			promise = createView(options);
-		}*/
+		 if (options.createView) {
+		 promise = options.createView(options);
+		 } else {
+		 promise = createView(options);
+		 }*/
 
 		return promise;
 	}

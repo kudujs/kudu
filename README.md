@@ -435,16 +435,21 @@ var route: {
 }
 ```
 
+Enter options
+-------------
+
 Enter accepts the following options: 
 
 ```javascript
 var options = {
     ctrl:       // the new controller instance
-    prevCtrl:   // the previous controller instance
     view:       // the new view instance
-    prevView:   // the previous view instance
     route:      // the new route instance
-    prevRoute:  // the previous route instance
+    prev: {    // the prev controller options
+        ctrl:       // the previous controller instance
+        view:       // the previous view instance
+        route:      // the previous route instance
+    }
     target:     // the default DOM target as passed to the Kudu instance
 };
 ```
@@ -478,16 +483,21 @@ var route: {
 }
 ```
 
+Leave options
+-------------
+
 Leave accepts the following options: 
 
 ```javascript
 var options = {
-    ctrl:       // the new controller instance
-    prevCtrl:   // the previous controller instance
-    view:       // the new view instance
-    prevView:   // the previous view instance
-    route:      // the new route instance
-    prevRoute:  // the previous route instance
+    ctrl:       // the current controller instance
+    view:       // the current view instance
+    route:      // the current route instance
+    next: {     // the next controller options
+        ctrl:       // the next controller instance
+        view:       // the next view instance
+        route:      // the next route instance
+    }
     target:     // the default DOM target as passed to the Kudu instance
 };
 ```
@@ -555,7 +565,15 @@ routeParams:   // all URL parameters (including segment parameters and query par
 args:          // arguments passed to the controller from another controller. args can 
                // only be passed to a view when called from a controller, not when 
                // navigating via the URL hash
-}
+ctrl:          // The controller instance
+route:         // The route that resolved to this controller being initialized
+
+prev: {       // the previous controller options, might be empty if this is the first controller rendered
+        args:        // arguments passed to the previous controller
+        ctrl:        // The previous controller instance
+        route:       // the route that resolved to the previous controller
+        routeParams: // the previous controller routeParams
+        view:        // the previous controller Ractive view instance}
 ```
 
 
@@ -587,7 +605,14 @@ args:          // arguments passed to the controller from another controller. ar
                // only be passed to a view when called from a controller, not when 
                // navigating via the URL hash
 
-view:          // a reference to the view that is going to be removed
+view:          // the ractive view instance being removed
+ctrl:          // The controller being removed
+route:         // The route that resolved to this controller being removed
+next: {        // the next controller options
+        args:        // arguments passed to the next controller
+        ctrl:        // The next controller instance
+        route:       // the route that resolved to the next controller
+        routeParams: // the next controller routeParams
 }
 ```
 
@@ -626,18 +651,28 @@ The following options are passed to the events:
 
 ```javascript
 options = {
+    ajaxTracker: // the ajaxTracker of the controller
+    routeParams:   // all URL parameters (including segment parameters and query parameters)
+    args:          // arguments passed to the controller from another controller
+    view:          // the ractive view instance (Note: viewBeforeInit won't have this property)
+    ctrl:          // The controller instance for this event
+    route:         // The route that resolved to this controller
     initialRoute: // true if this is the first route loaded, false otherwise. Useful if you need to know if the application loaded for
                   // the first time or if a route changed.
-    prevCtrl    : // previous controller which is being removed
-    newCtrl     : // new controller being added
-    isMainCtrl  : // (experimental) true if the new controller replaces the main view eg.
-                  // the target 
+    isMainCtrl  : // (experimental) true if the new controller replaces the main view eg. the target 
                   // specified in kudu initialization is replaced. If false
                   // it means the new controller is a sub view on another controller
-    ctrlOptions : // all the options used for the new controller
 		eventName   : // name of the event which fired
-		error       : // optionally specifies the error (an array of error messages)
-                  // which led to the event being triggered
+		error       : // optionally specifies the error (an array of error messages) which led to the event being triggered
+    next/prev: {    // the next or previous controller options - prev for for viewInit, viewRender and viewComplete, next for viewBeforeUnrender, viewUnrender.
+                    // viewFail has both next and prev
+        ajaxTracker: // the ajaxTracker of the prev/next controller
+        args:        // arguments passed to the prev/next controller
+        ctrl:        // The prev/next controller instance
+        route:       // the route that resolved to the prev/next controller
+        routeParams: // the prev/next controller routeParams
+        view:        // the ractive view instance
+    }
 }
 ```
 
@@ -652,6 +687,33 @@ onComplete : called after the view has been added to the DOM AND once all transi
              has completed.
 onRemove   : called before removing the controller
 onUnrender : called after the view has been removed from the DOM
+```
+
+Controller events options
+-------------------------
+The following options are passed to controller events
+
+```javascript
+options = {
+  ajaxTracker: // provides a means of registering ajax calls in the controller
+
+routeParams:   // all URL parameters (including segment parameters and query parameters)
+
+args:          // arguments passed to the controller from another controller. args can
+               // only be passed to a view when called from a controller, not when 
+               // navigating via the URL hash
+
+view:          // the ractive view instance (Note: onInit won't have this property)
+ctrl:          // The controller instance for this event
+route:         // The route that resolved to this controller
+next/prev: {        // the next or previous controller options - prev for for onInit, onRender and onComplete, next for onRemove and onUnrender
+        ajaxTracker: // the ajaxTracker of the prev/next controller
+        args:        // arguments passed to the prev/next controller
+        ctrl:        // The prev/next controller instance
+        route:       // the route that resolved to the prev/next controller
+        routeParams: // the prev/next controller routeParams
+        view:        // the ractive view instance (Note: onRemove won't have this property)
+}
 ```
 
 Controller events example:
