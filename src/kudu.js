@@ -872,16 +872,6 @@ define(function (require) {
 			}, 350);
 		}
 
-		/*
-		 function setupRoutesByPaths(routes) {
-		 for (var key in routes) {
-		 if (routes.hasOwnProperty(key)) {
-		 var route = routes[key];
-		 that.addRouteByPath(route);
-		 }
-		 }
-		 }*/
-
 		function viewFailed(options, errorArray) {
 			var errors = errorArray;
 			if (!$.isArray(errorArray)) {

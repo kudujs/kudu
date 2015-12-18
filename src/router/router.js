@@ -209,11 +209,25 @@ define(function (require) {
 			return router;
 		},
 		go: function (options) {
+
 			var ctrl = options.ctrl;
+			var moduleId;
+
+			if (ctrl == null) {
+				if (options.route) {
+					ctrl = options.route.ctrl;
+					moduleId = options.route.moduleId;
+				}
+			}
+
 			if (ctrl == null) {
 				throw new Error("router.go() requires a 'ctrl' passed as an option !");
 			}
-			var moduleId = ctrl.id;
+
+			if (moduleId == null) {
+				moduleId = ctrl.id;
+			}
+
 			options.args = options.args || {};
 			options.routeParams = options.routeParams || {};
 
@@ -489,9 +503,17 @@ define(function (require) {
 				if (options.route.moduleId == null || options.route.path == null) {
 					throw new Error("unknownRouteResolver must return a route object with a valid moduleId and path or a promise that resolves to a route object!");
 				}
+				
+				// Only add unknown route if it isn't already registered. This can occur if resolveUnknownRoute() returns a known
+				// route or a defaultRoute
+				var paths = router.getRoutesById()[options.route.moduleId];
+				if (paths == null) {
+					options.route.isNew = true;
+					router.loadModule(options);
+				} else {
+					router.go(options);
+				}
 
-				options.route.isNew = true;
-				router.loadModule(options);
 			}
 			return router;
 		},
@@ -956,7 +978,7 @@ define(function (require) {
 			if (defaultRoute == null) {
 				throw new Error("Couldn't resolve the url, " + location.href + ", to a route. Please set the option 'kudu.defaultRoute' to render a default page!");
 			}
-			deferred.resolve(defaultRoute);
+			deferred.resolve(defaultRoute);// TODO update hash
 			return promise;
 		}
 
