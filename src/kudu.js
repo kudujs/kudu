@@ -1,12 +1,12 @@
 // Events order
 //    RACTIVE  -> CTRL       => GLOBAL EVENT
-//             -> onRemove   => viewRemove         (old view)
-//                           => viewBeforeUnrender (old view)
-//			   ->            => viewBeforeInit     (new view)
-//			   -> onInit     => viewInit           (new view)
-//   unrender  -> onUnrender => viewUnrender       (old view)
-//   render    -> onRender   => viewRender         (new view)
-//   complete  -> onComplete => viewComplete       (new view)
+//             -> onRemove   => remove             (old view)
+//                           => beforeUnrender     (old view)
+//			   ->            => beforeInit         (new view)
+//			   -> onInit     => init               (new view)
+//   unrender  -> onUnrender => unrender           (old view)
+//   render    -> onRender   => render             (new view)
+//   complete  -> onComplete => complete           (new view)
 //   
 //   -----
 // viewFail - should this event be supported?
@@ -228,7 +228,7 @@ define(function (require) {
 
 			renderer(options).then(function () {
 				that.callViewEvent("onComplete", options);
-				that.triggerEvent("viewComplete", options);
+				that.triggerEvent("complete", options);
 				deferred.resolve(options.view);
 
 			}, function (error, view) {
@@ -329,11 +329,11 @@ define(function (require) {
 				initialRoute: options.initialRoute
 			};*/
 
-			if (eventName === 'viewRemove'  || eventName === 'viewBeforeUnrender' || eventName === 'viewUnrender') {
+			if (eventName === 'remove'  || eventName === 'beforeUnrender' || eventName === 'unrender') {
 				triggerOptions = prevOptions;
 				triggerOptions.next = currOptions;
 
-			} else if (eventName === 'viewFail') {
+			} else if (eventName === 'fail') {
 				triggerOptions = prevOptions;
 				triggerOptions.prev = prevOptions;
 				triggerOptions.next = currOptions;
@@ -384,7 +384,7 @@ define(function (require) {
 					args: options.mvc.options.args
 				}
 			};
-			that.triggerEvent("viewBeforeInit", options);
+			that.triggerEvent("beforeInit", options);
 
 			onInitHandler(onInitOptions).then(function (viewOrPromise) {
 
@@ -393,7 +393,7 @@ define(function (require) {
 
 					options.view = view;
 					options.kudu = that;
-					that.triggerEvent("viewInit", options);
+					that.triggerEvent("init", options);
 
 					that.processNewView(options).then(function (view) {
 
@@ -449,9 +449,9 @@ define(function (require) {
 
 			onRemoveHandler(onRemoveOptions).then(function () {
 				
-				that.triggerEvent("viewRemove", options);
+				that.triggerEvent("remove", options);
 
-				that.triggerEvent("viewBeforeUnrender", options);
+				that.triggerEvent("beforeUnrender", options);
 
 				deferred.resolve();
 
@@ -775,10 +775,10 @@ define(function (require) {
 
 			//options.view.transitionsEnabled = true;
 
-			// Seems that Ractive render swallows errors so here we catch and log errors thrown by the viewRender event
+			// Seems that Ractive render swallows errors so here we catch and log errors thrown by the render event
 			try {
 				that.callViewEvent("onRender", options);
-				that.triggerEvent("viewRender", options);
+				that.triggerEvent("render", options);
 
 			} catch (error) {
 				deferred.reject(error);
@@ -831,10 +831,10 @@ define(function (require) {
 			var deferred = $.Deferred();
 			var promise = deferred.promise();
 
-			// Seems that Ractive unrender swallows errors so here we catch and log errors thrown by the viewUnrender event
+			// Seems that Ractive unrender swallows errors so here we catch and log errors thrown by the unrender event
 			try {
 				that.callViewEvent("onUnrender", options);
-				that.triggerEvent("viewUnrender", options);
+				that.triggerEvent("unrender", options);
 
 			} catch (error) {
 				deferred.reject(error);

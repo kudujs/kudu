@@ -626,28 +626,28 @@ You can subscribe to global events fired by kudu as follows:
 
 ```javascript
 var kudu = require("kudu/kudu");
-$(kudu).on('viewInit', function (e, options) {
+$(kudu).on('init', function (e, options) {
     // called whenever a view has been initialized
 });
 ```
 	
 The following global events exist:
 ```
-viewBeforeInit     : called before the controller.onInit method is called
-viewInit           : called after the controller.onInit method is called
-viewRender         : called after the controller's Ractive view has been added to the
+beforeInit     : called before the controller.onInit method is called
+init           : called after the controller.onInit method is called
+render         : called after the controller's Ractive view has been added to the
                      DOM
-viewComplete       : called after the controller's Ractive view has been rendered and
+complete       : called after the controller's Ractive view has been rendered and
                      completed 
                      any transitions
-viewRemove          : called after the controller.onRemove method is called successfully. If onRemove
+remove          : called after the controller.onRemove method is called successfully. If onRemove
                      returns false or a promise that is rejected, this event is not riggered
-viewBeforeUnrender : called before view is removed from the dom. this event only 
+beforeUnrender : called before view is removed from the dom. this event only 
                      occurs 
                      if the Controller.onRemove method returns true
-viewUnrender       : called after the controller's Ractive view has been removed
+unrender       : called after the controller's Ractive view has been removed
                      from the DOM
-viewFail           : called when a view failed to create
+fail           : called when a view failed to create
 ```
 
 Global event options
@@ -659,7 +659,7 @@ options = {
     ajaxTracker: // the ajaxTracker of the controller
     routeParams:   // all URL parameters (including segment parameters and query parameters)
     args:          // arguments passed to the controller from another controller
-    view:          // the ractive view instance (Note: viewBeforeInit won't have this property)
+    view:          // the ractive view instance (Note: beforeInit won't have this property)
     ctrl:          // The controller instance for this event
     route:         // The route that resolved to this controller
     initialRoute: // true if this is the first route loaded, false otherwise. Useful if you need to know if the application loaded for
@@ -669,8 +669,8 @@ options = {
                   // it means the new controller is a sub view on another controller
 		eventName   : // name of the event which fired
 		error       : // optionally specifies the error (an array of error messages) which led to the event being triggered
-    next/prev: {    // the next or previous controller options - prev for for viewInit, viewRender and viewComplete, next for viewRemove, 
-                    // viewBeforeUnrender and viewUnrender.
+    next/prev: {    // the next or previous controller options - prev for for init, render and complete, next for remove, 
+                    // beforeUnrender and unrender.
                     // viewFail has both next and prev
         ajaxTracker: // the ajaxTracker of the prev/next controller
         args:        // arguments passed to the prev/next controller
@@ -779,8 +779,8 @@ var options = {
     args: // the arguments (an object) to pass to the route. 
     force: // true/false, force navigating to module even if there is no matching route specified
     updateUrl: // true/false, specifies whether the browser's URL hash should be updated to the controller we are navigating to.
-    [globalEventName]: // a function that will be called for the specified event eg: viewBeforeInit, viewInit, viewRemove, viewRender, viewBeforeUnrender, 
-                       // viewUnrender, viewFail
+    [globalEventName]: // a function that will be called for the specified event eg: veforeInit, init, remove, render, beforeUnrender, 
+                       // unrender, fail
 }
 
 ```
@@ -793,14 +793,14 @@ var $ = require("jquery");
 var kudu = require("kudu");
 
 // register global event
-$(kudu).on("viewRender", function(options) {
+$(kudu).on("render", function(options) {
 ...
 });
 
 // register local, once off event for the go call
 kudu.go({
     ctrl: home,
-    viewRender: function(options) {
+    render: function(options) {
     ...
     }
 });
