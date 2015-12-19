@@ -1,6 +1,6 @@
 // Events order
 //    RACTIVE  -> CTRL       => GLOBAL EVENT
-//             -> onRemove                         (old view)
+//             -> onRemove   => viewRemove         (old view)
 //                           => viewBeforeUnrender (old view)
 //			   ->            => viewBeforeInit     (new view)
 //			   -> onInit     => viewInit           (new view)
@@ -329,7 +329,7 @@ define(function (require) {
 				initialRoute: options.initialRoute
 			};*/
 
-			if (eventName === 'viewBeforeUnrender' || eventName === 'viewUnrender') {
+			if (eventName === 'viewRemove'  || eventName === 'viewBeforeUnrender' || eventName === 'viewUnrender') {
 				triggerOptions = prevOptions;
 				triggerOptions.next = currOptions;
 
@@ -357,6 +357,7 @@ define(function (require) {
 
 			$(that).trigger(eventName, [triggerOptions]);
 
+			// Call events defined as go() options
 			if (options[eventName]) {
 				options[eventName](triggerOptions);
 			}
@@ -447,6 +448,8 @@ define(function (require) {
 			};
 
 			onRemoveHandler(onRemoveOptions).then(function () {
+				
+				that.triggerEvent("viewRemove", options);
 
 				that.triggerEvent("viewBeforeUnrender", options);
 

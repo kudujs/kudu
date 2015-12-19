@@ -284,7 +284,7 @@ var CustomFactory = {
 }
 ```
 
-The above function accepts options consisting of the following:
+The above functions accepts the following options:
 
 ```javascript
 	var options = {
@@ -295,7 +295,8 @@ The above function accepts options consisting of the following:
     routeParams: // the URL parameters
     target: // the CSS selector where the view must be rendered to
     viewOrPromise: // an object that was returned from the controller onInit() function,
-                   // either a view or a promise that resolves to a view
+                   // either a view or a promise that resolves to a view. If onInit doesn't return anything,
+                   // null or a promise that is rejected, the view is cancelled and not rendered
 };
 ```
 
@@ -508,6 +509,8 @@ Controllers are AMD modules that must return an object which implement an _onIni
 or a Promise which resolves to a Ractive View. (If you want to implement views in an alternative technology to Ractive, eg. normal HTML,
 you can specify a custom _ViewFactory_ to handle different types of views).
 
+If _onInit_ does not return anything, returns null or a promise that is rejected, the view is cancelled and not rendered
+
 Example controller:
 
 ```javascript
@@ -637,6 +640,8 @@ viewRender         : called after the controller's Ractive view has been added t
 viewComplete       : called after the controller's Ractive view has been rendered and
                      completed 
                      any transitions
+viewRemove          : called after the controller.onRemove method is called successfully. If onRemove
+                     returns false or a promise that is rejected, this event is not riggered
 viewBeforeUnrender : called before view is removed from the dom. this event only 
                      occurs 
                      if the Controller.onRemove method returns true
@@ -664,7 +669,8 @@ options = {
                   // it means the new controller is a sub view on another controller
 		eventName   : // name of the event which fired
 		error       : // optionally specifies the error (an array of error messages) which led to the event being triggered
-    next/prev: {    // the next or previous controller options - prev for for viewInit, viewRender and viewComplete, next for viewBeforeUnrender, viewUnrender.
+    next/prev: {    // the next or previous controller options - prev for for viewInit, viewRender and viewComplete, next for viewRemove, 
+                    // viewBeforeUnrender and viewUnrender.
                     // viewFail has both next and prev
         ajaxTracker: // the ajaxTracker of the prev/next controller
         args:        // arguments passed to the prev/next controller
@@ -773,7 +779,7 @@ var options = {
     args: // the arguments (an object) to pass to the route. 
     force: // true/false, force navigating to module even if there is no matching route specified
     updateUrl: // true/false, specifies whether the browser's URL hash should be updated to the controller we are navigating to.
-    [globalEventName]: // a function that will be called for the specified event eg: viewBeforeInit, viewInit, viewRender, viewBeforeUnrender, 
+    [globalEventName]: // a function that will be called for the specified event eg: viewBeforeInit, viewInit, viewRemove, viewRender, viewBeforeUnrender, 
                        // viewUnrender, viewFail
 }
 
