@@ -2,7 +2,7 @@
 
 Kudu is a micro MVC framework centered around AMD modules and Ractive templates.
 
-Live examples are available [here](http://kudujs.github.io/kudu-examples/).
+Live examples are available <a href="http://kudujs.github.io/kudu-examples/" target="_blank"><h3>here</3></a>.
 
 kudu provides a router for mapping URLs to controllers. Controllers are essentially AMD modules with a well defined life-cycle consisting
 of an "initialization" phase, "rendering" phase and finally a "remove" phase. AMD modules can partake in these phases by implementing the
