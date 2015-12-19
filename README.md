@@ -633,7 +633,7 @@ $(kudu.lc).on('init', function (e, options) {
 });
 ```
 	
-The following global events exist:
+The following global lifecycle events exist:
 ```
 beforeInit     : called before the controller.onInit method is called
 init           : called after the controller.onInit method is called
@@ -652,8 +652,8 @@ unrender       : called after the controller's Ractive view has been removed
 fail           : called when a view failed to create
 ```
 
-Global event options
---------------------
+Global lifecycle event options  
+------------------------------
 The following options are passed to the events:
 
 ```javascript
@@ -671,8 +671,8 @@ options = {
                   // it means the new controller is a sub view on another controller
 		eventName   : // name of the event which fired
 		error       : // optionally specifies an error (an array of error messages) if an error occurred
-    next/prev: {    // the next or previous controller options - prev for for beforeInit, init, render and complete,
-                    //  next for remove,  beforeUnrender and unrender.
+    next/prev: {    // the next or previous controller options - prev for for beforeInit, init, render and
+                    // complete, next for remove,  beforeUnrender and unrender.
                     // viewFail has both next and prev
         ajaxTracker: // the ajaxTracker of the prev/next controller
         args:        // arguments passed to the prev/next controller
