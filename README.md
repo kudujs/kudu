@@ -619,14 +619,16 @@ next: {        // the next controller options
 }
 ```
 
-Global events
--------------
+Global lifecycle (lc) events
+----------------------------
 
-You can subscribe to global events fired by kudu as follows:
+You can subscribe to global lifecycle (lc) events fired by kudu as follows:
 
 ```javascript
 var kudu = require("kudu/kudu");
-$(kudu).on('init', function (e, options) {
+
+// listen on the kudu.lc (kudu lifecycle) namespace
+$(kudu.lc).on('init', function (e, options) {
     // called whenever a view has been initialized
 });
 ```
@@ -662,15 +664,15 @@ options = {
     view:          // the ractive view instance (Note: beforeInit won't have this property)
     ctrl:          // The controller instance for this event
     route:         // The route that resolved to this controller
-    initialRoute: // true if this is the first route loaded, false otherwise. Useful if you need to know if the application loaded for
-                  // the first time or if a route changed.
+    initialRoute: // true if this is the first route loaded, false otherwise. Useful if you need to know if the
+                  // application loaded for the first time or if a route changed.
     isMainCtrl  : // (experimental) true if the new controller replaces the main view eg. the target 
                   // specified in kudu initialization is replaced. If false
                   // it means the new controller is a sub view on another controller
 		eventName   : // name of the event which fired
-		error       : // optionally specifies the error (an array of error messages) which led to the event being triggered
-    next/prev: {    // the next or previous controller options - prev for for init, render and complete, next for remove, 
-                    // beforeUnrender and unrender.
+		error       : // optionally specifies an error (an array of error messages) if an error occurred
+    next/prev: {    // the next or previous controller options - prev for for beforeInit, init, render and complete,
+                    //  next for remove,  beforeUnrender and unrender.
                     // viewFail has both next and prev
         ajaxTracker: // the ajaxTracker of the prev/next controller
         args:        // arguments passed to the prev/next controller
@@ -712,7 +714,8 @@ args:          // arguments passed to the controller from another controller. ar
 view:          // the ractive view instance (Note: onInit won't have this property)
 ctrl:          // The controller instance for this event
 route:         // The route that resolved to this controller
-next/prev: {        // the next or previous controller options - prev for for onInit, onRender and onComplete, next for onRemove and onUnrender
+next/prev: {        // the next or previous controller options - prev for for onInit, onRender and onComplete,
+                    // next for onRemove and onUnrender
         ajaxTracker: // the ajaxTracker of the prev/next controller
         args:        // arguments passed to the prev/next controller
         ctrl:        // The prev/next controller instance
@@ -773,27 +776,29 @@ kudu.go({ctrl: homeCtrl});
 go() accepts the following options:
 ```javascript
 var options = {
-    ctrl: // controller module
-    id: // the controller module ID or path to the module
-    routeParams: // the url parameters (an object) to pass to the route. The parameters will be appended to the browser's url hash object.
-    args: // the arguments (an object) to pass to the route. 
-    force: // true/false, force navigating to module even if there is no matching route specified
-    updateUrl: // true/false, specifies whether the browser's URL hash should be updated to the controller we are navigating to.
-    [globalEventName]: // a function that will be called for the specified event eg: veforeInit, init, remove, render, beforeUnrender, 
-                       // unrender, fail
+    ctrl:              // controller module
+    id:                // the controller module ID or path to the module
+    routeParams:       // the url parameters (an object) to pass to the route. The parameters will be appended 
+                       // to the browser's url hash object.
+    args:              // the arguments (an object) to pass to the route. 
+    force:             // true/false, force navigating to module even if there is no matching route specified
+    updateUrl:         // true/false, specifies whether the browser's URL hash should be updated to the 
+                       // controller we are navigating to.
+    [globalEventName]: // a function that will be called for the specified event eg: veforeInit, init, remove,
+                       // render, beforeUnrender, unrender, fail
 }
 
 ```
 
-Example global events
----------------------
+Example global lifecycle events
+-------------------------------
 
 ```javascript
 var $ = require("jquery");
 var kudu = require("kudu");
 
-// register global event
-$(kudu).on("render", function(options) {
+// register global lifecycle event
+$(kudu.lc).on("render", function(options) {
 ...
 });
 

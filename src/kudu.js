@@ -32,6 +32,8 @@ define(function (require) {
 	function kudu() {
 
 		var that = {};
+		
+		that.lc = {};
 
 		// 
 		var reenableAnimationTracker = {enable: true};
@@ -66,6 +68,9 @@ define(function (require) {
 		var ajaxTracker = ajaxTrackerFn(that);
 
 		that.init = function (options) {
+			if (options == null) {
+				throw new Error("kudu.init() requires options!");
+			}
 			$.extend(initOptions, options);
 			that.validateInitOptions(initOptions);
 
@@ -355,7 +360,7 @@ define(function (require) {
 				initialRoute: options.initialRoute
 			};*/
 
-			$(that).trigger(eventName, [triggerOptions]);
+			$(that.lc).trigger(eventName, [triggerOptions]);
 
 			// Call events defined as go() options
 			if (options[eventName]) {
@@ -888,7 +893,9 @@ define(function (require) {
 					console.error("error occurred!", options);
 
 				} else {
-					console.error(options.error[0], options);
+					for (var i = 0; i < options.error.length; i++) {
+						console.error(options.error[i].stack);
+					}
 				}
 			}
 		}
