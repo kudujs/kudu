@@ -21,8 +21,14 @@ var appConfig = config.get("app");
 clean(appConfig);
 
 optimize(rConfig, appConfig).then(function (buildResponse) {
-	console.log("Build completed successfully!");
-	deployToTemplate(appConfig);
+
+	try {
+		deployToTemplate(appConfig);
+		console.log("Build completed successfully!");
+
+	} catch (e) {
+		console.error(e.stack);
+	}
 });
 
 function clean(config) {
@@ -32,7 +38,7 @@ function clean(config) {
 
 function deployToTemplate(appConfig) {
 	//fs.removeSync(config.dist);
-	glob(appConfig.dist + '/*min*', function(er, files) {
+	glob(appConfig.dist + '/*min*', function (er, files) {
 		copyFileArray(files, appConfig.template, {clobber: true});
 	});
 	console.log("Copied dist:'" + appConfig.dist + "' to template: '" + appConfig.template + "'");
