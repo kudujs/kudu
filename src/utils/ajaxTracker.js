@@ -1,7 +1,21 @@
 define(function (require) {
 
-	var $ = require("jquery");
-	var utils = require("./utils");
+	require("./jqr/npo");
+
+	function toES6Promise($promise) {
+		var es6Promise = new Promise(function (resolve, reject) {
+
+			$promise.then(function (data, textStatus, jqXHR) {
+				resolve({data: data, status: textStatus, xhr: jqXHR});
+			}, function (jqXHR, textStatus, errorThrown) {
+				reject({error: errorThrown, status: textStatus, xhr: jqXHR});
+			});
+
+			$promise.then(resolve, reject);
+		});
+		es6Promise.abort = $promise.abort;
+		return es6Promise;
+	}
 
 	function ajaxTracker(kudu) {
 
@@ -18,9 +32,14 @@ define(function (require) {
 		//var globalPromiseArgs = {};
 
 		that.add = function (target, promise, args) {
-			
+
 			if (typeof promise.abort !== 'function') {
 				throw new Error("ajaxTracker.add(promise) requires an 'abort' function for when views are cancelled!");
+			}
+
+			if (isXhr(promise) && typeof promise.then === 'function') {
+				// assume it is a jquery xhr, convert to es6 promise
+				promise = toES6Promise(promise);
 			}
 
 			var promisesArray = promisesMap[target];
@@ -33,28 +52,24 @@ define(function (require) {
 			promisesArray.push(item);
 
 			var triggerOptions = {
-				jqXHR: promise,
+				xhr: promise,
 				args: args
 			};
 			if (globalPromise == null) {
-				globalPromise = $.when(promise);
-				/*
-				 if (args != null) {
-				 globalPromiseArgs = $.extend({}, args);
-				 }*/
+				globalPromise = Promise.all([promise]);
 
-				$(kudu).trigger("global.ajax.start", [triggerOptions]);
+				kudu.emit("global.ajax.start", triggerOptions);
 				triggerOptions.args = args;
-				$(kudu).trigger("ajax.start", [triggerOptions]);
+				kudu.emit("ajax.start", triggerOptions);
 
 			} else {
-				globalPromise = $.when(globalPromise, promise);
+				globalPromise = Promise.all([globalPromise, promise]);
 				/*
 				 if (args != null) {
-				 globalPromiseArgs = $.extend(globalPromiseArgs, args);
+				 globalPromiseArgs = jqutils.extend(globalPromiseArgs, args);
 				 }*/
 				triggerOptions.args = args;
-				$(kudu).trigger("ajax.start", [triggerOptions]);
+				kudu.emit("ajax.start", triggerOptions);
 			}
 			globalPromise._id = idCounter++;
 
@@ -128,7 +143,7 @@ define(function (require) {
 		function abortItems(promisesArray) {
 			// promiseArray could be manipulated outside the loop below, so we make a copy
 			var promisesCopy = promisesArray.slice();
-			$.each(promisesCopy, function (index, item) {
+			promisesCopy.forEach(function (item, index) {
 				item.promise.abort();
 			});
 			globalPromise = null;
@@ -137,100 +152,111 @@ define(function (require) {
 
 		function addListeners(target, globalPromiseParam, promiseParam, args) {
 
-			promiseParam.then(function (data, status, jqXHR) {
+			promiseParam.then(function (value) {
 
 				var triggerOptions;
 
-				if (isXhr(jqXHR)) {
-					triggerOptions = {data: data, status: status, jqXHR: jqXHR, args: args};
+				if (isXhr(value.xhr)) {
+					triggerOptions = {data: value.data, status: value.status, xhr: value.xhr, args: args};
 
 				} else {
 					var promiseArgs;
 					if (arguments.length > 0) {
 						promiseArgs = Array.prototype.slice.call(arguments);
 					}
-					triggerOptions = {data: null, status: null, jqXHR: null, error: null, args: args, promiseArgs: promiseArgs};
+					triggerOptions = {data: null, status: null, xhr: null, error: null, args: args, promiseArgs: promiseArgs};
 				}
 
-				$(kudu).trigger("ajax.success", [triggerOptions]);
+				kudu.emit("ajax.success", triggerOptions);
 
-			}, function (jqXHR, status, error) {
+			}).catch(function (reason) {
 
 				var triggerOptions;
 
-				if (isXhr(jqXHR)) {
-					var triggerOptions = {error: error, status: status, jqXHR: jqXHR, args: args};
+				if (isXhr(reason.xhr)) {
+					triggerOptions = {error: reason.error, status: reason.status, xhr: reason.xhr, args: args};
 
 				} else {
 					var promiseArgs;
 					if (arguments.length > 0) {
 						promiseArgs = Array.prototype.slice.call(arguments);
 					}
-					triggerOptions = {data: null, status: null, jqXHR: null, error: null, args: args, promiseArgs: promiseArgs};
+					triggerOptions = {data: null, status: null, xhr: null, error: null, args: args, promiseArgs: promiseArgs};
 				}
 
-				$(kudu).trigger("ajax.error", [triggerOptions]);
+				kudu.emit("ajax.error", triggerOptions);
+			});
+			
+			promiseParam.then(function (value) {
+				always(value, true);
+			}).catch(function (reason) {
+				always(reason, false);
 			});
 
-			promiseParam.always(function (dataOrjqXHR, status, errorOrjqXHR) {
+			function always(value, success) {
 				// Note: the promise might not be an ajax request at all!
 
 				var triggerOptions;
 
-				if (isXhr(dataOrjqXHR)) {
-					triggerOptions = {data: dataOrjqXHR, status: status, jqXHR: errorOrjqXHR, error: null, args: args};
-
-				} else if (isXhr(errorOrjqXHR)) {
-					triggerOptions = {data: null, status: status, jqXHR: dataOrjqXHR, error: errorOrjqXHR, args: args};
-
-				} else {
+				if (isXhr(value.xhr)) {
+					// not an ajax request, just normal promise
 					var promiseArgs;
 					if (arguments.length > 0) {
 						promiseArgs = Array.prototype.slice.call(arguments);
 					}
-					triggerOptions = {data: null, status: null, jqXHR: null, error: null, args: args, promiseArgs: promiseArgs};
+					triggerOptions = {data: null, status: null, xhr: null, error: null, args: args, promiseArgs: promiseArgs};
+
+				} else {
+
+					if (success === true) {
+						triggerOptions = {data: value.data, status: value.status, xhr: value.xhr, error: null, args: args};
+
+					} else {
+						triggerOptions = {data: null, status: value.status, xhr: value.xhr, error: value.error, args: args};
+					}
 				}
 
-				$(kudu).trigger("ajax.complete", [triggerOptions]);
+
+				kudu.emit("ajax.complete", triggerOptions);
 				var removed = that.remove(target, promiseParam);
 				//console.log("Removed?", removed);
-			});
+			}
 
-			globalPromiseParam.then(function (data, status, jqXHR) {
+			globalPromiseParam.then(function (value) {
 
 				var triggerOptions;
 
-				if (isXhr(jqXHR)) {
-					triggerOptions = {data: data, status: status, jqXHR: jqXHR, args: args};
+				if (isXhr(value.xhr)) {
+					triggerOptions = {data: value.data, status: value.status, xhr: value.xhr, args: args};
 
 				} else {
 					var promiseArgs;
 					if (arguments.length > 0) {
 						promiseArgs = Array.prototype.slice.call(arguments);
 					}
-					triggerOptions = {data: null, status: null, jqXHR: null, error: null, args: args, promiseArgs: promiseArgs};
+					triggerOptions = {data: null, status: null, xhr: null, error: null, args: args, promiseArgs: promiseArgs};
 				}
 
 				// Only process if this is the globalPromise, otherwise globalPromise has been overwritten
 				if (globalPromise == null || globalPromise == globalPromiseParam) {
 
-					$(kudu).trigger("ajax.stop", [triggerOptions]);
+					kudu.emit("ajax.stop", triggerOptions);
 
 					delete triggerOptions.args;
-					$(kudu).trigger("global.ajax.stop", [triggerOptions]);
+					kudu.emit("global.ajax.stop", triggerOptions);
 					globalPromise = null;
 					//globalPromiseArgs = {};
 				} else {
 					//console.log("globalPromise ignore then");
-					$(kudu).trigger("ajax.stop", [triggerOptions]);
+					kudu.emit("ajax.stop", triggerOptions);
 				}
 
-			}, function (jqXHR, status, error) {
+			}).catch(function (reason) {
 
 				var triggerOptions;
 
-				if (isXhr(jqXHR)) {
-					triggerOptions = {error: error, status: status, jqXHR: jqXHR, args: args};
+				if (isXhr(reason.xhr)) {
+					triggerOptions = {error: reason.error, status: reason.status, xhr: reason.xhr, args: args};
 
 				} else {
 					var promiseArgs;
@@ -238,15 +264,15 @@ define(function (require) {
 						promiseArgs = Array.prototype.slice.call(arguments);
 					}
 
-					triggerOptions = {data: null, status: null, jqXHR: null, error: null, args: args, promiseArgs: promiseArgs};
+					triggerOptions = {data: null, status: null, xhr: null, error: null, args: args, promiseArgs: promiseArgs};
 				}
 
 				if (globalPromise == null || globalPromise == globalPromiseParam) {
 
-					$(kudu).trigger("ajax.stop", [triggerOptions]);
+					kudu.emit("ajax.stop", triggerOptions);
 
 					delete triggerOptions.args;
-					$(kudu).trigger("global.ajax.stop", [triggerOptions]);
+					kudu.emit("global.ajax.stop", triggerOptions);
 					globalPromise = null;
 					//globalPromiseArgs = {};
 					//console.log("globalPromise ERROR", globalPromiseParam);
@@ -254,23 +280,23 @@ define(function (require) {
 
 				} else {
 					//console.log("globalPromise ignore error");
-					$(kudu).trigger("ajax.stop", [triggerOptions]);
+					kudu.emit("ajax.stop", triggerOptions);
 					return;
 				}
 			});
-
-			globalPromiseParam.always(function () {
-
-				if (globalPromise == null || globalPromise == globalPromiseParam) {
-					//console.log("globalPromise ALWAYS", arguments);
-					//console.log("Promises size1:", utils.objectLength(jqXHRMap));
-					//console.log("Promises size2:", promiseCounter);
-
-				} else {
-					//console.log("globalPromise ignore always");
-					return;
-				}
-			});
+			/*
+			 globalPromiseParam.always(function () {
+			 
+			 if (globalPromise == null || globalPromise == globalPromiseParam) {
+			 //console.log("globalPromise ALWAYS", arguments);
+			 //console.log("Promises size1:", utils.objectLength(jqXHRMap));
+			 //console.log("Promises size2:", promiseCounter);
+			 
+			 } else {
+			 //console.log("globalPromise ignore always");
+			 return;
+			 }
+			 });*/
 		}
 
 		function isXhr(xhr) {

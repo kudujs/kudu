@@ -1,17 +1,18 @@
 define(function (require) {
 
-	var $ = require("jquery");
+	require("./jqr/npo");
 
 	function utils(options) {
 
 		var that = {};
 
-		var deferred = $.Deferred();
-		deferred.resolve();
-		var noopPromise = deferred.promise();
-		
-		that.noopPromise = function() {
-			return noopPromise;
+
+		var noopPromiseFn = new Promise(function (resolve, reject) {
+			resolve();
+		});
+
+		that.noopPromise = function () {
+			return noopPromiseFn;
 		}
 
 		that.isPromise = function (o) {
@@ -48,7 +49,6 @@ define(function (require) {
 				}
 			}
 		};
-
 
 		return that;
 	}

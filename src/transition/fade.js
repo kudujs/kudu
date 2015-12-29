@@ -1,6 +1,7 @@
 define(function (require) {
 
-	var $ = require("jquery");
+	//var $ = require("jquery");
+	var jqfade = require("../utils/jqr/fade");
 
 	function fade() {
 
@@ -18,8 +19,10 @@ define(function (require) {
 			if (options.firstView) {
 				duration = 0;
 			}
-
-			$(options.target).fadeIn(duration, function () {
+			
+			var node = document.querySelector(options.target);
+			jqfade.fadeIn(node, {duration: duration}, function () {
+			//$(options.target).fadeIn(duration, function () {
 				done();
 			});
 		};
@@ -36,8 +39,10 @@ define(function (require) {
 			if (options.firstView) {
 				duration = 0;
 			}
-
-			$(options.target).fadeOut(duration, function () {
+			
+			var node = document.querySelector(options.target);
+			jqfade.fadeOut(node,  {duration: duration}, function () {
+			//$(options.target).fadeOut(duration, function () {
 				done();
 			});
 		}

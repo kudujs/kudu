@@ -28,8 +28,9 @@
 define(function (require) {
 	'use strict';
 
-	var $ = require("jquery");
+	require("../utils/jqr/npo");
 	var utils = require("../utils/utils");
+	var jqutils = require("../utils/jqr/jqutils");
 
 	// Private closure variables
 	var cachedUrlPaths = {};
@@ -64,6 +65,12 @@ define(function (require) {
 	var popstateHashchangeEventLisener = function popstateHashchangeEventLisener() {
 		if (previousState != window.location.href) {
 			previousState = window.location.href;
+
+			// Guard against statechange firing after browser refresh
+			if (router.getHash() === currentHash) {
+				return;
+			}
+
 			currentHash = router.getHash();
 			router.fire('statechange');
 		}
@@ -485,7 +492,7 @@ define(function (require) {
 					options.route = newRoute;
 					router.loadUnknownRoute(options);
 
-				}, function () {
+				}).catch(function () {
 					// Rejected. try and load the route that was found previously which is probably the '*' mapping.
 					if (options.route != null) {
 						router.loadModule(options);
@@ -503,7 +510,7 @@ define(function (require) {
 				if (options.route.moduleId == null || options.route.path == null) {
 					throw new Error("unknownRouteResolver must return a route object with a valid moduleId and path or a promise that resolves to a route object!");
 				}
-				
+
 				// Only add unknown route if it isn't already registered. This can occur if resolveUnknownRoute() returns a known
 				// route or a defaultRoute
 				var paths = router.getRoutesById()[options.route.moduleId];
@@ -611,7 +618,7 @@ define(function (require) {
 					options.urlParams = urlParams;
 				}
 
-				var routerOptions = $.extend({}, options);
+				var routerOptions = jqutils.extend({}, options);
 				routerOptions.routeParams = urlParams;
 				routerOptions.module = module;
 				routerOptions.route = route;
@@ -946,7 +953,7 @@ define(function (require) {
 				var routeQueryParamsStr = path.substr(routePathQuestionIndex + 1);
 
 				var routeQueryParams = router.parseRouteQueryParams(routeQueryParamsStr);
-				routeParams = $.extend(routeParams, routeQueryParams);
+				routeParams = jqutils.extend(routeParams, routeQueryParams);
 			}
 			cachedRouterParams[path] = routeParams;
 			return routeParams;
@@ -968,44 +975,44 @@ define(function (require) {
 	};
 
 	function resolveUnknownRoutes() {
-		var deferred = $.Deferred();
-		var promise = deferred.promise();
+		var promise = new Promise(function (resolve, reject) {
 
-		var hashIndex = window.location.href.indexOf('#');
+			var hashIndex = window.location.href.indexOf('#');
 
-		if (hashIndex === -1 || hashIndex === location.href.length - 1) {
-			// no hash found or hash is at end of url and no hash part is available, so use default view
-			if (defaultRoute == null) {
-				throw new Error("Couldn't resolve the url, " + location.href + ", to a route. Please set the option 'kudu.defaultRoute' to render a default page!");
-			}
-			deferred.resolve(defaultRoute);// TODO update hash
-			return promise;
-		}
-
-		var path = router.urlPath(window.location.href);
-		path = stripLeadingSlash(path);
-
-		/*
-		 if (path.indexOf("/") === 0) {
-		 path = path.substr(1);
-		 }*/
-
-		require([path], function (module) {
-			if (module == null) {
-				deferred.reject();
-				return;
+			if (hashIndex === -1 || hashIndex === location.href.length - 1) {
+				// no hash found or hash is at end of url and no hash part is available, so use default view
+				if (defaultRoute == null) {
+					throw new Error("Couldn't resolve the url, " + location.href + ", to a route. Please set the option 'kudu.defaultRoute' to render a default page!");
+				}
+				resolve(defaultRoute);// TODO update hash
+				return promise;
 			}
 
-			var newRoute = {
-				path: path,
-				ctrl: module,
-				moduleId: path
-			};
-			deferred.resolve(newRoute);
+			var path = router.urlPath(window.location.href);
+			path = stripLeadingSlash(path);
 
-		}, function () {
-			deferred.reject();
+			/*
+			 if (path.indexOf("/") === 0) {
+			 path = path.substr(1);
+			 }*/
 
+			require([path], function (module) {
+				if (module == null) {
+					reject();
+					return;
+				}
+
+				var newRoute = {
+					path: path,
+					ctrl: module,
+					moduleId: path
+				};
+				resolve(newRoute);
+
+			}, function () {
+				reject();
+
+			});
 		});
 
 		return promise;
@@ -1014,7 +1021,8 @@ define(function (require) {
 	function appendHashParams(hash, params) {
 
 		if (params != null) {
-			var paramStr = $.param(params, true);
+			var traditional = true;
+			var paramStr = jqutils.param(params, traditional);
 
 			if (paramStr.length > 0) {
 

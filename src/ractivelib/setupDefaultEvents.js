@@ -1,6 +1,6 @@
 define(function (require) {
 
-	var $ = require("jquery");
+	//var $ = require("jquery");
 	var Ractive = require("ractive");
 
 	function setupDefaultEvents(options) {

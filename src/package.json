@@ -1,0 +1,35 @@
+{
+    "name": "kudu-js",
+    "version": "0.0.1",
+    "description": "A small MVC framework based on Ractive and AMD",
+    "author": "Bob Schellink <sabob1@gmail.com>",
+    "contributors": [{
+        }],
+    "scripts": {
+    },
+    "main": "dist/kudu.js",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/kudujs/kudu"
+    },
+    "bugs": {
+        "url": "https://github.com/kudujs/kudu/issues"
+    },
+    "keywords": [
+        "ractive",
+        "mvc",
+        "amd"
+    ],
+    "dependencies": {
+        
+        "requirejs": "2.1.22",
+        "ractive": "0.8.0"
+    },
+    "devDependencies": {
+    },
+    "licenses": [
+        {
+            "type": "MIT"
+        }
+    ]
+}

@@ -1,6 +1,6 @@
 {
-  "name": "kudu-examples",
-  "description": "Kudu Examples",
+  "name": "kudu-js",
+  "description": "Kudu MVC framework",
   "version": "0.0.1",
   "dependencies": {},
   "devDependencies": {

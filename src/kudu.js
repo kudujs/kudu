@@ -14,7 +14,7 @@
 define(function (require) {
 
 	var router = require("./router/router");
-	var $ = require("jquery");
+	require("./utils/jqr/npo");
 	var Ractive = require("ractive");
 	var ajaxTrackerFn = require("./utils/ajaxTracker");
 	var simpleAjaxTrackerFn = require("./utils/simpleAjaxTracker");
@@ -28,12 +28,13 @@ define(function (require) {
 	//var unrenderView = require("./ractivelib/render/unrender");
 	var severity = require("./utils/severity");
 	var utils = require("./utils/utils");
+	var jqutils = require("./utils/jqr/jqutils");
+	var EventEmitter = require("./utils/jqr/EventEmitter");
+	var jqfade = require("./utils/jqr/fade");
 
 	function kudu() {
 
-		var that = {};
-		
-		that.lc = {};
+		var that = new EventEmitter();
 
 		// 
 		var reenableAnimationTracker = {enable: true};
@@ -71,7 +72,7 @@ define(function (require) {
 			if (options == null) {
 				throw new Error("kudu.init() requires options!");
 			}
-			$.extend(initOptions, options);
+			initOptions = jqutils.extend({}, initOptions, options);
 			that.validateInitOptions(initOptions);
 
 			Ractive.DEBUG = initOptions.debug;
@@ -136,7 +137,7 @@ define(function (require) {
 				options.ajaxTracker = simpleAjaxTrackerFn.create(ajaxTracker, options);
 
 				//options.requestTracker = currentMVC.requestTracker;
-				options.mvc = $.extend({}, currentMVC);
+				options.mvc = jqutils.extend({}, currentMVC);
 
 				// cancel and cleanup current view request (if there is one)
 				cancelCurrentRequest(options);
@@ -148,8 +149,11 @@ define(function (require) {
 
 				// Disable transitions if view requests overwrite one another, eg when another view request is being processed still
 				if (callstack.length > 1) {
-					$.fx.off = true;
-					$(options.target).stop(true, true);
+					///console.log("+1")
+					//$.fx.off = true;
+					//$(options.target).stop(true, true);
+					jqfade.off(true);
+					jqfade.stop();
 					reenableAnimationTracker.enable = false;
 				}
 
@@ -162,7 +166,7 @@ define(function (require) {
 					// No view rendered so skip removing the current view and just init the new view
 					processOnInit(options).then(function () {
 
-					}, function () {
+					}).catch(function () {
 						// processOnInit failed
 						cancelCurrentRequest(options);
 
@@ -179,7 +183,8 @@ define(function (require) {
 					processOnRemove(options).then(function () {
 						processOnInit(options).then(function () {
 
-						}, function () {
+
+						}).catch(function () {
 							// processOnInit failed
 							cancelCurrentRequest(options);
 
@@ -190,7 +195,7 @@ define(function (require) {
 								viewFailed(options, arguments);
 							}
 						});
-					}, function () {
+					}).catch(function () {
 						// processOnRemove failed
 						cancelCurrentRequest(options);
 						viewFailed(options, arguments);
@@ -218,35 +223,34 @@ define(function (require) {
 		};
 
 		that.processNewView = function (options) {
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
+				setupViewEvents(options);
 
-			setupViewEvents(options);
+				var renderer;
 
-			var renderer;
+				if (options.route.enter == null && (currentMVC.route == null || currentMVC.route.leave == null)) {
+					renderer = that.renderViewWithAnimation;
+				} else {
+					renderer = that.customRenderView;
+				}
 
-			if (options.route.enter == null && (currentMVC.route == null || currentMVC.route.leave == null)) {
-				renderer = that.renderViewWithAnimation;
-			} else {
-				renderer = that.customRenderView;
-			}
+				renderer(options).then(function () {
+					that.callViewEvent("onComplete", options);
+					that.triggerEvent("complete", options);
+					resolve(options.view);
 
-			renderer(options).then(function () {
-				that.callViewEvent("onComplete", options);
-				that.triggerEvent("complete", options);
-				deferred.resolve(options.view);
+				}).catch(function (error, view) {
+					//viewFailed(options, [error]);
+					// render Ractive rejeced
+					//deferred.reject(error);
+					reject(error, view);
+				});
 
-			}, function (error, view) {
-				//viewFailed(options, [error]);
-				// render Ractive rejeced
-				//deferred.reject(error);
-				deferred.reject(error, view);
+				// Request could have been overwritten by new request. Ensure this is still the active request
+				if (!options.mvc.requestTracker.active) {
+					reject.apply(undefined, ["Request overwritten by another view request in [ProcessNewView]", options.mvc.view]);
+				}
 			});
-
-			// Request could have been overwritten by new request. Ensure this is still the active request
-			if (!options.mvc.requestTracker.active) {
-				deferred.reject("Request overwritten by another view request");
-			}
 
 			return promise;
 		};
@@ -273,11 +277,11 @@ define(function (require) {
 					args: options.mvc.options.args,
 					view: options.mvc.view
 				};
-				
+
 				var eventOptions = {};
 
 				if (eventName === 'onUnrender') {
-					
+
 					eventOptions = prevOptions;
 					eventOptions.next = currOptions;
 
@@ -301,40 +305,40 @@ define(function (require) {
 			if (ctrl == null) {
 				ctrl = {};
 			}
-			
-			var currOptions = {
-					ajaxTracker: options.ajaxTracker,
-					routeParams: options.routeParams,
-					args: options.args,
-					view: options.view,
-					ctrl: options.ctrl,
-					route: options.route
-				};
 
-				var prevOptions = {
-					ajaxTracker: options.mvc.options.ajaxTracker, // TODO test this
-					ctrl: options.mvc.ctrl,
-					route: options.mvc.route,
-					routeParams: options.mvc.options.routeParams,
-					args: options.mvc.options.args,
-					view: options.mvc.view
-				};
+			var currOptions = {
+				ajaxTracker: options.ajaxTracker,
+				routeParams: options.routeParams,
+				args: options.args,
+				view: options.view,
+				ctrl: options.ctrl,
+				route: options.route
+			};
+
+			var prevOptions = {
+				ajaxTracker: options.mvc.options.ajaxTracker, // TODO test this
+				ctrl: options.mvc.ctrl,
+				route: options.mvc.route,
+				routeParams: options.mvc.options.routeParams,
+				args: options.mvc.options.args,
+				view: options.mvc.view
+			};
 
 			var triggerOptions = {};
 			/*
-				ctrl: options.ctrl,
-				view: options.view,
-				args: options.args,
-				routeParams: options.routeParams,
-				route: options.route,
-				isMainCtrl: isMainCtrlReplaced,
-				//ctrlOptions: options,
-				eventName: eventName,
-				error: options.error,
-				initialRoute: options.initialRoute
-			};*/
+			 ctrl: options.ctrl,
+			 view: options.view,
+			 args: options.args,
+			 routeParams: options.routeParams,
+			 route: options.route,
+			 isMainCtrl: isMainCtrlReplaced,
+			 //ctrlOptions: options,
+			 eventName: eventName,
+			 error: options.error,
+			 initialRoute: options.initialRoute
+			 };*/
 
-			if (eventName === 'remove'  || eventName === 'beforeUnrender' || eventName === 'unrender') {
+			if (eventName === 'remove' || eventName === 'beforeUnrender' || eventName === 'unrender') {
 				triggerOptions = prevOptions;
 				triggerOptions.next = currOptions;
 
@@ -349,18 +353,19 @@ define(function (require) {
 			}
 
 			/*
-			var triggerOptions = {
-				//oldCtrl: currentMVC.ctrl,
-				oldCtrl: options.mvc.ctrl,
-				newCtrl: ctrl,
-				isMainCtrl: isMainCtrlReplaced,
-				ctrlOptions: options,
-				eventName: eventName,
-				error: options.error,
-				initialRoute: options.initialRoute
-			};*/
+			 var triggerOptions = {
+			 //oldCtrl: currentMVC.ctrl,
+			 oldCtrl: options.mvc.ctrl,
+			 newCtrl: ctrl,
+			 isMainCtrl: isMainCtrlReplaced,
+			 ctrlOptions: options,
+			 eventName: eventName,
+			 error: options.error,
+			 initialRoute: options.initialRoute
+			 };*/
 
-			$(that.lc).trigger(eventName, [triggerOptions]);
+			var prefix = 'lc.';
+			that.emit(prefix + eventName, triggerOptions);
 
 			// Call events defined as go() options
 			if (options[eventName]) {
@@ -369,134 +374,138 @@ define(function (require) {
 		};
 
 		function processOnInit(options) {
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
 
-			var onInitOptions = {
-				route: options.route,
-				ctrl: options.ctrl,
-				routeParams: options.routeParams,
-				args: options.args,
-				mvc: options.mvc,
-				ajaxTracker: options.ajaxTracker,
-				target: options.target,
-				prev: {
-					ajaxTracker: options.mvc.options.ajaxTracker,
-					ctrl: options.mvc.ctrl,
-					route: options.mvc.route,
-					routeParams: options.mvc.options.routeParams,
-					view: options.mvc.view,
-					args: options.mvc.options.args
-				}
-			};
-			that.triggerEvent("beforeInit", options);
+				var onInitOptions = {
+					route: options.route,
+					ctrl: options.ctrl,
+					routeParams: options.routeParams,
+					args: options.args,
+					mvc: options.mvc,
+					ajaxTracker: options.ajaxTracker,
+					target: options.target,
+					prev: {
+						ajaxTracker: options.mvc.options.ajaxTracker,
+						ctrl: options.mvc.ctrl,
+						route: options.mvc.route,
+						routeParams: options.mvc.options.routeParams,
+						view: options.mvc.view,
+						args: options.mvc.options.args
+					}
+				};
+				that.triggerEvent("beforeInit", options);
 
-			onInitHandler(onInitOptions).then(function (viewOrPromise) {
+				onInitHandler(onInitOptions).then(function (viewOrPromise) {
 
-				options.viewOrPromise = viewOrPromise;
-				that.createView(options).then(function (view) {
+					options.viewOrPromise = viewOrPromise;
+					that.createView(options).then(function (view) {
 
-					options.view = view;
-					options.kudu = that;
-					that.triggerEvent("init", options);
+						options.view = view;
+						options.kudu = that;
+						that.triggerEvent("init", options);
 
-					that.processNewView(options).then(function (view) {
+						that.processNewView(options).then(function (view) {
 
+							onInitComplete();
+							resolve();
+
+						}).catch(function () {
+							// processNewView rejected
+							onInitComplete();
+							reject.apply(undefined, arguments);
+						});
+
+					}).catch(function () {
+						// view creation rejected
 						onInitComplete();
-						deferred.resolve();
-
-					}, function () {
-						// processNewView rejected
-						onInitComplete();
-						deferred.reject.apply(deferred, arguments);
+						reject.apply(undefined, arguments);
+						//deferred.reject(arguments);
 					});
 
-				}, function () {
-					// view creation rejected
+				}).catch(function () {
+					// onInitHandler rejected
+
 					onInitComplete();
-					deferred.reject.apply(deferred, arguments);
+					reject.apply(undefined, arguments);
 					//deferred.reject(arguments);
 				});
-
-			}, function () {
-				// onInitHandler rejected
-
-				onInitComplete();
-				deferred.reject.apply(deferred, arguments);
 			});
 
 			return promise;
 		}
 
 		function processOnRemove(options) {
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
 
-			var onRemoveOptions = {
-				next: {
-					ctrl: options.ctrl,
-					route: options.route,
-					view: options.view,
-					args: options.args,
-					routeParams: options.routeParams,
-					ajaxTracker: options.ajaxTracker
-				},
-				ctrl: currentMVC.ctrl,
-				route: currentMVC.route,
-				view: currentMVC.view,
-				routeParams: currentMVC.options.routeParams,
-				args: currentMVC.options.args,
-				mvc: options.mvc,
-				ajaxTracker: currentMVC.options.ajaxTracker,
-				target: currentMVC.options.target
-						//kudu: that
-			};
+				var onRemoveOptions = {
+					next: {
+						ctrl: options.ctrl,
+						route: options.route,
+						view: options.view,
+						args: options.args,
+						routeParams: options.routeParams,
+						ajaxTracker: options.ajaxTracker
+					},
+					ctrl: currentMVC.ctrl,
+					route: currentMVC.route,
+					view: currentMVC.view,
+					routeParams: currentMVC.options.routeParams,
+					args: currentMVC.options.args,
+					mvc: options.mvc,
+					ajaxTracker: currentMVC.options.ajaxTracker,
+					target: currentMVC.options.target
+							//kudu: that
+				};
 
-			onRemoveHandler(onRemoveOptions).then(function () {
-				
-				that.triggerEvent("remove", options);
+				onRemoveHandler(onRemoveOptions).then(function () {
 
-				that.triggerEvent("beforeUnrender", options);
+					that.triggerEvent("remove", options);
 
-				deferred.resolve();
+					that.triggerEvent("beforeUnrender", options);
 
-			}, function () {
-				// ctrl.onRemove failed or cancelled
-				//options.view.transitionsEnabled = true;
+					resolve();
 
-				if (currentMVC.view != null) {
-					currentMVC.view.transitionsEnabled = true;
-				}
-				deferred.reject.apply(deferred, arguments);
+				}).catch(function () {
+					// ctrl.onRemove failed or cancelled
+					//options.view.transitionsEnabled = true;
+
+					if (currentMVC.view != null) {
+						currentMVC.view.transitionsEnabled = true;
+					}
+					reject.apply(undefined, arguments);
+				});
 			});
 
 			return promise;
 		}
 
 		that.enter = function (options) {
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
 
-			var introOptions = {
-				duration: 'fast',
-				target: options.target,
-				intro: initOptions.intro,
-				fx: initOptions.fx || false
-			};
+				var introOptions = {
+					duration: 'fast',
+					target: options.target,
+					intro: initOptions.intro,
+					fx: initOptions.fx || false
+				};
 
-			if (currentMVC.ctrl == null) {
-				introOptions.firstView = true;
-			}
+				if (currentMVC.ctrl == null) {
+					introOptions.firstView = true;
+				}
 
-			that.renderView(options).then(function () {
+				that.renderView(options).then(function () {
 
-				introFn(introOptions).then(function () {
-					deferred.resolve(options.view);
+					introFn(introOptions).then(function () {
+						resolve(options.view);
+					}).catch(function (error, view) {
+					// introFn rejeced
+					reject.apply(undefined, [error, view]);
 				});
 
-			}, function (error, view) {
-				// render Ractive rejeced
-				deferred.reject(error, view);
+				}).catch(function (error, view) {
+					// render Ractive rejeced
+					reject.apply(undefined, [error, view]);
+				});
 			});
 
 			return promise;
@@ -504,215 +513,176 @@ define(function (require) {
 
 		that.leave = function (options) {
 
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
 
-			var outroOptions = {
-				duration: 100,
-				target: options.target,
-				outro: initOptions.outro,
-				fx: initOptions.fx || false
-			};
+				var outroOptions = {
+					duration: 100,
+					target: options.target,
+					outro: initOptions.outro,
+					fx: initOptions.fx || false
+				};
 
-			if (currentMVC.ctrl == null) {
-				outroOptions.firstView = true;
-				outroOptions.duration = 0;
-			}
-
-			outroFn(outroOptions).then(function () {
-				if (!options.mvc.requestTracker.active) {
-					deferred.reject("Request overwritten by another view request", options.view);
-					return;
+				if (currentMVC.ctrl == null) {
+					outroOptions.firstView = true;
+					outroOptions.duration = 0;
 				}
 
-				that.unrenderView(options).then(function () {
-					deferred.resolve(options.view);
+				outroFn(outroOptions).then(function () {
+					if (!options.mvc.requestTracker.active) {
+						reject.apply(undefined, ["Request overwritten by another view request in [outro]", options.mvc.view]);
+						return;
+					}
 
-				}, function (error, view) {
-					deferred.reject(error, view);
-				});
+					that.unrenderView(options).then(function () {
+						resolve(options.view);
+
+					}).catch(function (error, view) {
+						reject.apply(undefined, [error, view]);
+					});
+				}).catch(function (error) {
+						reject.apply(undefined, [error, options.mvc.view]);
+					});
 			});
 
 			return promise;
 		};
 
 		that.renderViewWithAnimation = function (options) {
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
 
-			that.leave(options).then(function () {
-				that.enter(options).then(function () {
-					deferred.resolve(options.view);
-				}, function (error, view) {
+				that.leave(options).then(function () {
+					that.enter(options).then(function () {
+						resolve(options.view);
+					}).catch(function (error, view) {
+						// render Ractive rejeced
+						reject.apply(undefined, [error, view]);
+					});
+					
+				}).catch(function (error, view) {
 					// render Ractive rejeced
-					deferred.reject(error, view);
+					reject.apply(undefined, [error, view]);
 				});
-			}, function (error, view) {
-				// render Ractive rejeced
-				deferred.reject(error, view);
 			});
-
-			/*
-			 
-			 var outroOptions = {
-			 duration: 100,
-			 target: options.target,
-			 outro: initOptions.outro
-			 };
-			 var introOptions = {
-			 duration: 'fast',
-			 target: options.target,
-			 intro: initOptions.intro
-			 };
-			 if (currentMVC.ctrl == null) {
-			 outroOptions.firstView = introOptions.firstView = true;
-			 outroOptions.duration = 0;
-			 }
-			 
-			 outroFn(outroOptions).then(function () {
-			 if (!options.mvc.requestTracker.active) {
-			 deferred.reject("Request overwritten by another view request");
-			 return;
-			 }
-			 
-			 that.unrenderView(options).then(function () {
-			 
-			 that.renderView(options).then(function () {
-			 
-			 introFn(introOptions).then(function () {
-			 deferred.resolve(options.view);
-			 });
-			 
-			 }, function (error, view) {
-			 // render Ractive rejeced
-			 deferred.reject(error, view);
-			 });
-			 
-			 }, function (error, view) {
-			 deferred.reject(error, view);
-			 });
-			 });
-			 */
 
 			return promise;
 		};
 
 		that.customLeave = function (options) {
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
 
-			var leaveOptions = {
-				ctrl: currentMVC.ctrl,
-				view: currentMVC.view,
-				route: currentMVC.route,
-				next: {
-					ctrl: options.ctrl,
-					view: options.view,
-					route: options.route,
-				},
-				target: options.target
-			};
-
-			var leaveFn;
-			var leaveCleanupFn;
-
-			if (options.mvc.view == null) {
-				// No view rendered yet, so we stub the leaveFn
-				leaveFn = function () {
+				var leaveOptions = {
+					ctrl: currentMVC.ctrl,
+					view: currentMVC.view,
+					route: currentMVC.route,
+					next: {
+						ctrl: options.ctrl,
+						view: options.view,
+						route: options.route,
+					},
+					target: options.target
 				};
-				leaveCleanupFn = utils.noopPromise;
 
-			} else {
+				var leaveFn;
+				var leaveCleanupFn;
 
-				if (currentMVC.route != null) {
-					leaveFn = currentMVC.route.leave;
-					leaveCleanupFn = that.unrenderViewCleanup;
-				}
-
-				// If leave not defined or there is no view to unreder, fallback to unrenderView
-				if (leaveFn == null) {
-					//leaveFn = that.unrenderView;
-					leaveFn = that.leave;
-
-					//Since we unrederView we don't need to perform unrenderCleanup, so we stub it out
+				if (options.mvc.view == null) {
+					// No view rendered yet, so we stub the leaveFn
+					leaveFn = function () {
+					};
 					leaveCleanupFn = utils.noopPromise;
 
-					leaveOptions = options; // set leaveOptions to options, since we are going to use unrenderView instead
-				}
-			}
+				} else {
 
-			var leavePromise = leaveFn(leaveOptions);
-			if (leavePromise == null) {
-				leavePromise = utils.noopPromise();
-			}
-
-			leavePromise.then(function () {
-
-				leaveCleanupFn(options).then(function () {
-					if (!options.mvc.requestTracker.active) {
-						deferred.reject("Request overwritten by another view request", options.mvc.view);
-						return;
+					if (currentMVC.route != null) {
+						leaveFn = currentMVC.route.leave;
+						leaveCleanupFn = that.unrenderViewCleanup;
 					}
 
-					deferred.resolve();
+					// If leave not defined or there is no view to unreder, fallback to unrenderView
+					if (leaveFn == null) {
+						//leaveFn = that.unrenderView;
+						leaveFn = that.leave;
 
-				}, function (error) {
-					deferred.reject(error, options.view);
+						//Since we unrederView we don't need to perform unrenderCleanup, so we stub it out
+						leaveCleanupFn = utils.noopPromise;
+
+						leaveOptions = options; // set leaveOptions to options, since we are going to use unrenderView instead
+					}
+				}
+
+				var leavePromise = leaveFn(leaveOptions);
+				if (leavePromise == null) {
+					leavePromise = utils.noopPromise();
+				}
+
+				leavePromise.then(function () {
+
+					leaveCleanupFn(options).then(function () {
+						if (!options.mvc.requestTracker.active) {
+							reject.apply(undefined, ["Request overwritten by another view request [leaveCleanUp]", options.mvc.view]);
+							return;
+						}
+
+						resolve();
+
+					}).catch(function (error) {
+						reject.apply(undefined, [error, options.view]);
+					});
+
+				}).catch(function () {
+					reject("Error during route.leave()");
 				});
-
-			}, function () {
-				deferred.reject("Error during route.leave()");
 			});
 
 			return promise;
 		};
 
 		that.customEnter = function (options) {
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
 
-			var enterOptions = {
-				ctrl: options.ctrl,
-				view: options.view,
-				route: options.route,
-				prev: {
-					ctrl: currentMVC.ctrl,
-					view: currentMVC.view,
-					route: currentMVC.route
-				},
-				target: options.target
-			};
+				var enterOptions = {
+					ctrl: options.ctrl,
+					view: options.view,
+					route: options.route,
+					prev: {
+						ctrl: currentMVC.ctrl,
+						view: currentMVC.view,
+						route: currentMVC.route
+					},
+					target: options.target
+				};
 
-			var enterFn = options.route.enter;
-			var enterCleanupFn = that.renderViewCleanup;
+				var enterFn = options.route.enter;
+				var enterCleanupFn = that.renderViewCleanup;
 
-			// If enter not defined, fallback to renderView
-			if (enterFn == null) {
-				enterFn = that.enter;
-				//enterFn = that.renderView;
+				// If enter not defined, fallback to renderView
+				if (enterFn == null) {
+					enterFn = that.enter;
+					//enterFn = that.renderView;
 
-				//Since we unrederView we don't need to perform unrenderCleanup, so we stub it out
-				enterCleanupFn = utils.noopPromise;
+					//Since we unrederView we don't need to perform unrenderCleanup, so we stub it out
+					enterCleanupFn = utils.noopPromise;
 
-				enterOptions = options; // set leaveOptions to options, since we are going to use unrenderView instead
-			}
+					enterOptions = options; // set leaveOptions to options, since we are going to use unrenderView instead
+				}
 
-			var enterPromise = enterFn(enterOptions);
-			if (enterPromise == null) {
-				enterPromise = utils.noopPromise();
-			}
+				var enterPromise = enterFn(enterOptions);
+				if (enterPromise == null) {
+					enterPromise = utils.noopPromise();
+				}
 
-			enterPromise.then(function () {
+				enterPromise.then(function () {
 
-				enterCleanupFn(options).then(function () {
-					deferred.resolve(options.view);
+					enterCleanupFn(options).then(function () {
+						resolve(options.view);
 
-				}, function (error) {
-					deferred.reject(error, options.view);
+					}).catch(function (error) {
+						reject.apply(undefined, [error, options.view]);
+					});
+
+				}).catch(function () {
+					reject("Error during route.enter()");
 				});
-
-			}, function () {
-				deferred.reject("Error during route.enter()");
 			});
 
 			return promise;
@@ -720,21 +690,21 @@ define(function (require) {
 
 		// User provided rendering during route setup
 		that.customRenderView = function (options) {
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
 
-			that.customLeave(options).then(function () {
+				that.customLeave(options).then(function () {
 
-				that.customEnter(options).then(function () {
+					that.customEnter(options).then(function () {
 
-					deferred.resolve(options.view);
+						resolve(options.view);
 
-				}, function (error, view) {
-					deferred.reject(error, view);
+					}).catch(function (error, view) {
+						reject.apply(undefined, [error, view]);
+					});
+
+				}).catch(function (error, view) {
+					reject.apply(undefined, [error, view]);
 				});
-
-			}, function (error, view) {
-				deferred.reject(error, view);
 			});
 
 			return promise;
@@ -746,107 +716,106 @@ define(function (require) {
 		};
 
 		that.renderView = function (options) {
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
 
-			//options.view.transitionsEnabled = false;
+				//options.view.transitionsEnabled = false;
 
-			var renderPromise = initOptions.viewFactory.renderView(options);
+				var renderPromise = initOptions.viewFactory.renderView(options);
 
-			renderPromise.then(function () {
+				renderPromise.then(function () {
 
-				that.renderViewCleanup(options).then(function () {
+					that.renderViewCleanup(options).then(function () {
 
-					deferred.resolve(options.view);
+						resolve(options.view);
 
-				}, function (error) {
-					deferred.reject(error, options.view);
+					}).catch(function (error) {
+						reject.apply(undefined, [error, options.view]);
+					});
+
+				}).catch(function (error) {
+					reject.apply(undefined, [error, options.view]);
 				});
-
-
-			}, function (error) {
-				deferred.reject(error, options.view);
 			});
 
 			return promise;
 		};
 
 		that.renderViewCleanup = function (options) {
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
 
-			// Store new controller and view on currentMVC
-			that.updateMVC(options);
+				// Store new controller and view on currentMVC
+				that.updateMVC(options);
 
-			//options.view.transitionsEnabled = true;
+				//options.view.transitionsEnabled = true;
 
-			// Seems that Ractive render swallows errors so here we catch and log errors thrown by the render event
-			try {
-				that.callViewEvent("onRender", options);
-				that.triggerEvent("render", options);
+				// Seems that Ractive render swallows errors so here we catch and log errors thrown by the render event
+				try {
+					that.callViewEvent("onRender", options);
+					that.triggerEvent("render", options);
 
-			} catch (error) {
-				deferred.reject(error);
-				return promise;
-			}
-			deferred.resolve();
+				} catch (error) {
+					reject(error);
+					return promise;
+				}
+				resolve();
+			});
 			return promise;
 		};
 
 		that.unrenderView = function (options) {
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
 
-			if (options.mvc.view == null) {
-				// No view to unrender
-				deferred.resolve();
+				if (options.mvc.view == null) {
+					// No view to unrender
+					resolve();
 
-			} else {
+				} else {
 
-				//options.mvc.view.transitionsEnabled = false;
-				var unrenderPromise = initOptions.viewFactory.unrenderView(options);
+					//options.mvc.view.transitionsEnabled = false;
+					var unrenderPromise = initOptions.viewFactory.unrenderView(options);
 
-				unrenderPromise.then(function () {
-					//options.mvc.view.unrender().then(function () {
+					unrenderPromise.then(function () {
+						//options.mvc.view.unrender().then(function () {
 
-					that.unrenderViewCleanup(options).then(function () {
+						that.unrenderViewCleanup(options).then(function () {
 
-						if (!options.mvc.requestTracker.active) {
-							deferred.reject("Request overwritten by another view request", options.mvc.view);
-							return;
-						}
+							if (!options.mvc.requestTracker.active) {
+								reject.apply(undefined, ["Request overwritten by another view request in [unrenderView]", options.mvc.view]);
+								return;
+							}
 
-						deferred.resolve(options.mvc.view);
+							resolve(options.mvc.view);
 
-					}, function (error) {
-						deferred.reject(error, options.view);
+						}).catch(function (error) {
+							reject.apply(undefined, [error, options.view]);
+						});
+
+					}).catch(function () {
+
+						reject(options.mvc.view);
+
 					});
-
-				}, function () {
-
-					deferred.reject(options.mvc.view);
-
-				});
-			}
+				}
+			});
 
 			return promise;
 		};
 
 		that.unrenderViewCleanup = function (options) {
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
+			var promise = new Promise(function (resolve, reject) {
 
-			// Seems that Ractive unrender swallows errors so here we catch and log errors thrown by the unrender event
-			try {
-				that.callViewEvent("onUnrender", options);
-				that.triggerEvent("unrender", options);
+				// Seems that Ractive unrender swallows errors so here we catch and log errors thrown by the unrender event
+				try {
+					that.callViewEvent("onUnrender", options);
+					that.triggerEvent("unrender", options);
 
-			} catch (error) {
-				deferred.reject(error);
-				return promise;
-			}
+				} catch (error) {
+					reject(error);
+					return promise;
+				}
 
-			deferred.resolve();
+				resolve();
+			});
 			return promise;
 		};
 
@@ -875,14 +844,15 @@ define(function (require) {
 			// We wait a bit before enabling animations in case user is still thrashing UI.
 			setTimeout(function () {
 				if (reenableAnimationTracker.enable) {
-					$.fx.off = false;
+					//$.fx.off = false;
+					jqfade.off(false);
 				}
 			}, 350);
 		}
 
 		function viewFailed(options, errorArray) {
 			var errors = errorArray;
-			if (!$.isArray(errorArray)) {
+			if (!Array.isArray(errorArray)) {
 				errors = Array.prototype.slice.call(errorArray);
 			}
 			options.error = errors;
@@ -894,7 +864,13 @@ define(function (require) {
 
 				} else {
 					for (var i = 0; i < options.error.length; i++) {
-						console.error(options.error[i].stack);
+						// Print stack trace if error is actual error with a stack property
+						if (options.error[i].stack == null) {
+							console.error(options.error[i]);
+
+						} else {
+							console.error(options.error[i].stack);
+						}
 					}
 				}
 			}

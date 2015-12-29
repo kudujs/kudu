@@ -1,6 +1,6 @@
 define(function (require) {
 
-	var $ = require("jquery");
+	//var $ = require("jquery");
 
 	function setupEvents(options) {
 		// Guard against if view is not a ractive instance

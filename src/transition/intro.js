@@ -1,21 +1,21 @@
 define(function (require) {
 
-	var $ = require("jquery");
+	require("../utils/jqr/npo");
 	var fade = require("./fade");
 
 	function intro(options) {
 
-		var deferred = $.Deferred();
-		var promise = deferred.promise();
-		
-		if (options.fx !== true) {
-			deferred.resolve();
-			return promise;
-		}
-		
-		var transition = options.intro || fade.intro;
+		var promise = new Promise(function (resolve, reject) {
 
-		transition(options, deferred.resolve);
+			if (options.fx !== true) {
+				resolve();
+				return promise;
+			}
+
+			var transition = options.intro || fade.intro;
+
+			transition(options, resolve);
+		});
 
 		return promise;
 	}

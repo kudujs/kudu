@@ -1,22 +1,22 @@
 define(function (require) {
 
-	var $ = require("jquery");
+	require("../../utils/jqr/npo");
 
 	function render(options) {
 
-		var deferred = $.Deferred();
-		var promise = deferred.promise();
+		var promise = new Promise(function (resolve, reject) {
 
-		options.view.transitionsEnabled = false;
+			options.view.transitionsEnabled = false;
 
-		options.view.render(options.target).then(function () {
+			options.view.render(options.target).then(function () {
 
-			options.view.transitionsEnabled = true;
-			
-			deferred.resolve(options.view);
+				options.view.transitionsEnabled = true;
 
-		}, function (error) {
-			deferred.reject(error, options.view);
+				resolve(options.view);
+
+			}).catch(function (error) {
+				reject.apply(undefined, [error, options.view]);
+			});
 		});
 
 		return promise;
