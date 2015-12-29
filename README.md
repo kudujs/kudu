@@ -2,7 +2,7 @@
 
 Kudu is a micro MVC framework centered around AMD modules and Ractive templates.
 
-Live examples are available <a href="http://kudujs.github.io/kudu-examples/" target="_blank"><h3>here</3></a>.
+Live examples are available <a href="http://kudujs.github.io/kudu-examples/" target="_blank"><h3>here</h3></a>.
 
 kudu provides a router for mapping URLs to controllers. Controllers are essentially AMD modules with a well defined life-cycle consisting
 of an "initialization" phase, "rendering" phase and finally a "remove" phase. AMD modules can partake in these phases by implementing the
@@ -629,8 +629,8 @@ You can subscribe to global lifecycle (lc) events fired by kudu as follows:
 ```javascript
 var kudu = require("kudu/kudu");
 
-// listen on the kudu.lc (kudu lifecycle) namespace
-$(kudu.lc).on('init', function (e, options) {
+// listen on the "lc." (lifecycle) namespace
+$(kudu).on('lc.init', function (e, options) {
     // called whenever a view has been initialized
 });
 ```
@@ -800,7 +800,7 @@ var $ = require("jquery");
 var kudu = require("kudu");
 
 // register global lifecycle event
-$(kudu.lc).on("render", function(options) {
+$(kudu).on("lc.render", function(options) {
 ...
 });
 
