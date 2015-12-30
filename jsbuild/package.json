@@ -1,7 +1,7 @@
 {
   "name": "kudu-js",
   "description": "Kudu MVC framework",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "dependencies": {},
   "devDependencies": {
     "commander": "^2.9.0",

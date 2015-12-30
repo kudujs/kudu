@@ -37,11 +37,42 @@ function clean(config) {
 }
 
 function deployToTemplate(appConfig) {
-	//fs.removeSync(config.dist);
+	// delete current kudu file
+	glob(appConfig.template + '/*min*', function (er, files) {
+		deleteFileArray(files);
+	});
+	
+	// copy new kudu file
 	glob(appConfig.dist + '/*min*', function (er, files) {
 		copyFileArray(files, appConfig.template, {clobber: true});
 	});
+
 	console.log("Copied dist:'" + appConfig.dist + "' to template: '" + appConfig.template + "'");
+	
+	// update config.js
+	replaceInFile(appConfig.template + "/../app/config/config.js", '.*"kudu":.*', '\t\t"kudu": "kudu.' + appConfig.version + '.min",');
+}
+
+function replaceInFile(file, search, replaceWith) {
+	var regexp = new RegExp(search);
+	var data = fs.readFileSync(file, 'utf8');
+	data = data.replace(regexp, replaceWith);
+	fs.writeFileSync(file, data);
+}
+
+function deleteFileArray(files, options) {
+	if (files == null) {
+		console.log("no files to delete");
+		return;
+	}
+	if (!Array.isArray(files)) {
+		console.log("files is not an array!");
+		return;
+	}
+
+	for (var i = 0; i < files.length; i++) {
+		fs.removeSync(files[i], options);
+	}
 }
 
 function copyFileArray(files, destFolder, options) {
