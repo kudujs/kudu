@@ -50,7 +50,7 @@ function deployToTemplate(appConfig) {
 	console.log("Copied dist:'" + appConfig.dist + "' to template: '" + appConfig.template + "'");
 	
 	// update config.js
-	replaceInFile(appConfig.template + "/../app/config/config.js", '.*"kudu":.*', '\t\t"kudu": "kudu.' + appConfig.version + '.min",');
+	replaceInFile(appConfig.template + "/../app/config/config.js", '.*"kudu":.*', '\t\t"kudu": "kudu.min",');
 }
 
 function replaceInFile(file, search, replaceWith) {
