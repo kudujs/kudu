@@ -1,4 +1,16 @@
+Publish
+-------
 
 To publish a build to npm run:
 
-prompt>npm publish ./
+kudu/src>npm publish ./
+
+Publish locally
+---------------
+To publish a build locally as a tgz, run:
+
+kudu/src>npm pack
+
+Then you can test it locally with
+
+testfolder>npm install ../kudu/src/kudu.version.tgz

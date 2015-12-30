@@ -1,6 +1,6 @@
 {
     "name": "kudu-js",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "A small MVC framework based on Ractive and AMD",
     "author": "Bob Schellink <sabob1@gmail.com>",
     "contributors": [{
@@ -22,8 +22,8 @@
     ],
     "dependencies": {
         
-        "requirejs": "2.1.22",
-        "ractive": "0.8.0"
+        "ractive": "git://github.com/ractivejs/ractive.git#edge"
+        
     },
     "devDependencies": {
     },
