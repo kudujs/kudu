@@ -16,12 +16,10 @@ var promise = new Promise(function (resolve, reject) {
 		rConfig.optimize = "none";
 		rConfig.generateSourceMaps = false;
 		rConfig.out = rConfig.srcOut;
-		rConfig.out = rConfig.out.replace("{version}", appConfig.version);
 
 		requirejs.optimize(rConfig, function (srcBuildResponse) {
 
 			rConfig.out = tmpOut;
-			rConfig.out = rConfig.out.replace("{version}", appConfig.version);
 			rConfig.generateSourceMaps = tmpGenerateSourceMaps;
 			rConfig.optimize = "uglify2";
 
