@@ -22,8 +22,6 @@
     ],
     "dependencies": {
         
-        "ractive": "git://github.com/ractivejs/ractive.git#edge"
-        
     },
     "devDependencies": {
     },
