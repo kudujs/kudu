@@ -815,7 +815,7 @@ kudu.go({
 
 Building Kudu
 -------------
-To build kudu, checkout clone the git repository with:
+To build kudu, perform the following steps:
 
 ```
 git clone https://github.com/kudujs/kudu
@@ -823,9 +823,5 @@ cd kudujs/jsbuild
 npm install
 node build
 ```
-
-To build kudu, navigate to _jsbuild_ folder and run:
-1. jsbuild>npm install
-2. jsbuild>node build
 
 The Kudu distribution will be copied to the _dist_ folder.

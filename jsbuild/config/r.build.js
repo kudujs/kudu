@@ -26,8 +26,8 @@
 		"ractive": "empty:"
     },
 	 name: "kudu",
-    out: "../dist/kudu.min.js",
-	srcOut: "../dist/kudu.js",
+    out: "../dist/kudu.{version}.min.js",
+	srcOut: "../dist/kudu.{version}.js",
 	
 	//stubModules: [ 'rvc', 'text', "ractive", "jquery" ],
 	stubModules: [ 'rvc', 'rv', 'text' ],
