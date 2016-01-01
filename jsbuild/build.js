@@ -10,26 +10,42 @@ var optimize = require('./mods/optimize');
 var fs = require('fs-extra');
 var path = require('path');
 var glob = require('glob');
+var archiver = require("archiver");
+
+var buildDir = '../../buildtmp';
+var distDir = "../../dist";
+
+build();
+
+function build() {
+	createDist();
+	return;
 
 // Read in the build config file
-var rConfig = fs.readFileSync("./config/r.build.js", 'utf8');
-rConfig = eval(rConfig);
+	var rConfig = fs.readFileSync("./config/r.build.js", 'utf8');
+	rConfig = eval(rConfig);
 
-var appConfig = config.get("app");
+	var appConfig = config.get("app");
 
 // Remove the deploy folder in case of previous builds
-clean(appConfig);
+	clean(appConfig);
 
-optimize(rConfig, appConfig).then(function (buildResponse) {
+	optimize(rConfig, appConfig).then(function (buildResponse) {
 
-	try {
-		deployToTemplate(appConfig);
-		console.log("Build completed successfully!");
+		try {
+			createDist();
 
-	} catch (e) {
-		console.error(e.stack);
-	}
-});
+			if (dirExists(appConfig.template)) {
+
+				deployToTemplate(appConfig);
+			}
+			console.log("Build completed successfully!");
+
+		} catch (e) {
+			console.error(e.stack);
+		}
+	});
+}
 
 function clean(config) {
 	fs.removeSync(config.dist);
@@ -41,14 +57,18 @@ function deployToTemplate(appConfig) {
 	glob(appConfig.template + '/*min*', function (er, files) {
 		deleteFileArray(files);
 	});
-	
+
 	// copy new kudu file
 	glob(appConfig.dist + '/*min*', function (er, files) {
-		copyFileArray(files, appConfig.template, {clobber: true});
+		for (var i = 0; i < files.length; i++) {
+			var filename = path.basename(files[i]);
+			var dest = appConfig.template + "/" + filename;
+			fs.copySync(files[i], dest, {clobber: true});
+		}
 	});
 
 	console.log("Copied dist:'" + appConfig.dist + "' to template: '" + appConfig.template + "'");
-	
+
 	// update config.js
 	replaceInFile(appConfig.template + "/../app/config/config.js", '.*"kudu":.*', '\t\t"kudu": "kudu.min",');
 }
@@ -75,20 +95,45 @@ function deleteFileArray(files, options) {
 	}
 }
 
-function copyFileArray(files, destFolder, options) {
-	if (files == null) {
-		console.log("no files to copy");
-		return;
-	}
-	if (!Array.isArray(files)) {
-		console.log("files is not an array!");
-		return;
+function createDist() {
+	fs.removeSync(buildDir);
+	fs.removeSync(distDir);
+	fs.mkdir(distDir);
+
+	fs.copySync("../dist", buildDir + "/kudu/dist");
+	fs.copySync("../src", buildDir + "/kudu/src");
+	fs.copySync("../jsbuild", buildDir + "/kudu/jsbuild");
+	fs.copySync("../README.md", buildDir + "/kudu/README.md");
+
+	var nwd = "../../";
+
+	// coppySync trips over Windows symlink permissions, so using glob as a workaround to copy examples
+	var files = glob.sync("kudu-examples/**/*", {cwd: nwd, nodir: true, ignore: ["**/node_modules/**", "**/META-INF/**", "**/kudulib/**", "**/dist/**", "**/build/**", "**/nbproject/**"]});
+	//console.log(files);
+	for (var i = 0; i < files.length; i++) {
+		var file = files[i];
+		var srcFile = nwd + file;
+		var destFile = file.replace("kudu-examples", ""); // create relative dest file by removing prefix from src dile
+		destFile = buildDir + "/examples" + "/" + destFile;
+		fs.copySync(srcFile, destFile, {clobber: true});
 	}
 
-	for (var i = 0; i < files.length; i++) {
-		var filename = path.basename(files[i]);
-		var dest = destFolder + "/" + filename;
-		fs.copySync(files[i], dest, options);
+	var output = fs.createWriteStream(distDir + "/kudu." + config.version + ".zip");
+	var archive = archiver.create('zip', {});
+	archive.pipe(output);
+	archive.bulk([
+		{expand: true, cwd: buildDir, src: ['**/*']}
+	]);
+	archive.finalize();
+
+}
+
+function dirExists(path) {
+	try	{
+		return fs.statSync(path).isDir();
+	} catch (err)
+	{
+		return false;
 	}
 }
 

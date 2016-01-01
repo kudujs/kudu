@@ -25,5 +25,6 @@ var packageJson = fs.readFileSync("../package.json", 'utf8');
 packageJson = JSON.parse(packageJson);
 
 appConfig.version = packageJson.version;
+config.version = packageJson.version;
 
 module.exports = config;
