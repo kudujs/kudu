@@ -1,7 +1,7 @@
 Welcome
 -------
 
-This is the distribution for Kudu.
+This is the distribution for Kudu, a Javascript framework based on Ractive and AMD modules.
 
 Unzip the contents to a folder. Contained in this distribution is the Kudu framework and examples, under the _kudu_ and _examples_ folders.
 
