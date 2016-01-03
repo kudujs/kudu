@@ -125,6 +125,14 @@ define(function (require) {
 		that.getActiveRoute = function () {
 			return currentMVC.route;
 		};
+		
+		that.getActiveView = function () {
+			return currentMVC.view;
+		};
+		
+		that.getActiveController = function () {
+			return currentMVC.ctrl;
+		};					
 
 		that.routeLoaded = function (options) {
 
