@@ -16,8 +16,8 @@ define(function (require) {
 	var router = require("./router/router");
 	require("./utils/jqr/npo");
 	var Ractive = require("ractive");
-	var ajaxTrackerFn = require("./utils/ajaxTracker");
-	var simpleAjaxTrackerFn = require("./utils/simpleAjaxTracker");
+	var ajaxTrackerFn = require("./utils/at/ajaxTracker");
+	var simpleAjaxTrackerFn = require("./utils/at/simpleAjaxTracker");
 	var onInitHandler = require("./lifecycle/onInitHandler");
 	var onRemoveHandler = require("./lifecycle/onRemoveHandler");
 	var setupViewEvents = require("./ractivelib/setupEvents");
@@ -65,8 +65,12 @@ define(function (require) {
 			viewFactory: ractiveViewFactory,
 			debug: true
 		};
-
-		var ajaxTracker = ajaxTrackerFn(that);
+		
+		var ajaxTrackerOptions = {
+			kudu: that,
+			wrappers: {}
+		};
+		var ajaxTracker = ajaxTrackerFn(ajaxTrackerOptions);
 
 		that.init = function (options) {
 			if (options == null) {
