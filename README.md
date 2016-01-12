@@ -813,13 +813,20 @@ kudu.go({
 });
 ```
 
-Building Kudu
+Checkout Kudu
 -------------
-To build kudu, perform the following steps:
+To checkout Kudu do the following:
 
 ```
 git clone https://github.com/kudujs/kudu
-cd kudujs/jsbuild
+cd kudu
+```
+
+Building Kudu
+-------------
+To build kudu, perform the following steps:
+```
+cd jsbuild
 npm install
 node build
 ```
