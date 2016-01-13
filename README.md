@@ -429,7 +429,7 @@ var route: {
 
         options.view.render(options.target); // Append view to DOM
 
-        $(options.target).slidDown(function() { // Use jQuery to slide the view down
+        $(options.target).slideDown(function() { // Use jQuery to slide the view down
             d.resolve(); // Resolve the promise to notify Kudu that the view is complete
         });
 
@@ -476,7 +476,7 @@ var route: {
     leave: function(options) {
         var d = $.deferred();
 
-        $(options.target).slidUp(function() { // Use jQuery to slide the view up
+        $(options.target).slideUp(function() { // Use jQuery to slide the view up
             options.view.unrender(options.target); // Remove view from the DOM
             d.resolve(); // Resolve the promise to notify Kudu that the view is complete
         });
@@ -630,11 +630,19 @@ You can subscribe to global lifecycle (lc) events fired by kudu as follows:
 var kudu = require("kudu/kudu");
 
 // listen on the "lc." (lifecycle) namespace
-$(kudu).on('lc.init', function (e, options) {
+kudu.on('lc.init', function (e, options) {
     // called whenever a view has been initialized
 });
+
+kudu.on('lc.render', function (e, options) {
+    // called whenever a view has been rendered
+});
+
+kudu.on('lc.complete', function (e, options) {
+    // called after a view has been rendered and completed any transitions
+});
 ```
-	
+
 The following global lifecycle events exist:
 ```
 beforeInit     : called before the controller.onInit method is called
@@ -642,8 +650,7 @@ init           : called after the controller.onInit method is called
 render         : called after the controller's Ractive view has been added to the
                      DOM
 complete       : called after the controller's Ractive view has been rendered and
-                     completed 
-                     any transitions
+                     completed any transitions
 remove          : called after the controller.onRemove method is called successfully. If onRemove
                      returns false or a promise that is rejected, this event is not riggered
 beforeUnrender : called before view is removed from the dom. this event only 
@@ -686,10 +693,10 @@ options = {
 }
 ```
 
-Controller events
------------------
+Controller lifecycle events
+---------------------------
 
-The following events exist on a controller:
+The following lifecycle events exist on a controller:
 ```
 onInit     : the initialization event which must be implemented by each controller
 onRender   : called after the view has been added to the DOM
@@ -699,8 +706,9 @@ onRemove   : called before removing the controller
 onUnrender : called after the view has been removed from the DOM
 ```
 
-Controller events options
--------------------------
+Controller lifecycle event options
+----------------------------------
+
 The following options are passed to controller events
 
 ```javascript
@@ -789,29 +797,27 @@ var options = {
     [globalEventName]: // a function that will be called for the specified event eg: veforeInit, init, remove,
                        // render, beforeUnrender, unrender, fail
 }
-
 ```
 
-Example global lifecycle events
--------------------------------
+Kudu.getDefaultTarget()
+-----------------------
 
-```javascript
-var $ = require("jquery");
-var kudu = require("kudu");
+Kudu.getDefaultTarget() returns the selector (generally the element ID) where views will be rendered to.
 
-// register global lifecycle event
-$(kudu).on("lc.render", function(options) {
-...
-});
+Kudu.getActiveRoute()
+---------------------
 
-// register local, once off event for the go call
-kudu.go({
-    ctrl: home,
-    render: function(options) {
-    ...
-    }
-});
-```
+Kudu.getActiveRoute() returns the current active route instance.
+
+Kudu.getActiveController()
+--------------------------
+
+Kudu.getActiveController() returns the current active controller instance.
+
+Kudu.getActiveView()
+--------------------
+
+Kudu.getActiveView() returns the current active view instance.
 
 Checkout Kudu
 -------------
