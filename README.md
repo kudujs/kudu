@@ -562,7 +562,7 @@ options = {
   ajaxTracker: // provides a means of registering ajax calls in the controller. Ajax
                // calls tracked this way will automatically abort when the view is
                // removed. ajaxTracker also provides a way to listen to ajax lifecycle
-               //  events such as ajax.start / ajax.stop etc.
+               //  events such as ajax.start / ajax.stop etc. See below
 
 routeParams:   // all URL parameters (including segment parameters and query parameters) 
                // are passed to the controller through the routeParams object.
@@ -766,6 +766,93 @@ define(function (require) {
         }
         return homeCtrl;
     });
+```
+
+AjaxTracker
+-----------
+
+An ajaxTracker instance is part of the options passed a controller onInit method.
+
+AjaxTracker provides a way of registering ajax calls to be tracked and aborted
+when the view is removed before the ajax calls could complete. This can happen
+if your view loads a long running ajax request, and before the request completes,
+the user decides to navigate to a different view. Kudu will automatically abort
+all running ajax requests registered with the AjaxTracker when users switch views.
+
+It is also possible to manually abort all registered ajax requests through the
+ajaxTracker.abort() method.
+
+AjaxTracker also provides the following ajax lifecycle  events:
+
+* global.ajax.start
+* ajax.start
+* ajax.success
+* ajax.error
+* ajax.complete
+* ajax.stop
+* global.ajax.stop
+
+The global.ajax.start event is fired when the first ajax request is added to
+ajaxTracker and global.ajax.stop is fired when the last ajax request has completed.
+
+AjaxTracker example
+-------------------
+
+We want to track ajax requests when they start and stop. Here is our _start.js_ script:
+```
+var kudu = require("kudu");
+
+ kudu.on("global.ajax.start", function (options) {
+    // When any ajax request starts, we show the loading indicator
+    utils.showLoadingIndicator();
+});
+
+kudu.on("global.ajax.stop", function (options) {
+    // When all ajax requests have stopped, we hide the loading indicator
+    utils.hideLoadingIndicator();
+});
+```
+
+Here is our controller, which shows how to add an ajax request to the ajaxTracker.
+```
+var kudu = require("kudu");
+var $ = require("jquery");
+
+that.onInit = function (options) {
+
+    var promise = new Promise(function (resolve, reject) {
+
+        // We load the json data through an Ajax request
+        var xhr = $.getJSON("data/hello.json?delay=2000");
+
+        options.ajaxTracker.add(xhr);
+
+        xhr.then(function (data) {
+
+            // Here we have the data and pass it to the createView method to render
+            var view = createView(data);
+
+            // Everything is good, so we resolve the promise, passing in the view
+            resolve(view);
+        }, function () {
+            // Oops, something went wrong, so we reject the promise
+            reject("Could not load data for AjaxEvents");
+        });
+    });
+
+    return promise;
+};
+```
+
+AjaxTracker API
+---------------
+AjaxTracker exposes the following API:
+
+```
+ajaxTracker.add(xhrOrPromise);    // adds an XmlHttpRequest, JQuery XHR or a promise which 
+                                  // has an abort function
+ajaxTracker.remove(xhrOrPromise); // removes the xhr or promise added to the AjaxTracker
+ajaxTracker.abort();              // manually abort all registered ajax requests
 ```
 
 Kudu API
