@@ -383,9 +383,10 @@ Routes consist of the following options:
               // alternatively specify the 'moduleId' option for lazy loading of the
     moduleId: // controller if the path matches a url, the controller with this ID
               // will be instantiated, alternatively specify the 'ctrl' option for
-    enter:    // eager loading of the controller a function for manually adding the 
-              // view to the DOM and to perform custom intro animations. By default
-    leave:    // kudu insert views into the default target a function for manually
+              // eager loading of the controller
+    enter:    //  a function for manually adding the  view to the DOM and to perform 
+              // custom intro animations. By default kudu insert views into the default target
+    leave:    //  a function for manually
               // removing the view from the DOM and to perform custom outro
               // animations. By default kudu remove views from the default target
 }
