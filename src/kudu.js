@@ -36,10 +36,11 @@ define(function (require) {
 
 		var that = new EventEmitter();
 
-		// 
 		var reenableAnimationTracker = {enable: true};
 
-		//var routes;
+		// Ractive unrender workaround. We store the current options temporarily so we can invoke forceUnrender which is added to the options
+		// in unrender.js
+		var _tempOptions = {};
 
 		var currentMVC = {
 			view: null,
@@ -48,7 +49,8 @@ define(function (require) {
 			route: null,
 			options: {
 				routeParams: null,
-				args: null
+				args: null,
+				forceUnrender: null
 			}
 		};
 
@@ -65,7 +67,7 @@ define(function (require) {
 			viewFactory: ractiveViewFactory,
 			debug: true
 		};
-		
+
 		var ajaxTrackerOptions = {
 			kudu: that,
 			wrappers: {}
@@ -129,14 +131,14 @@ define(function (require) {
 		that.getActiveRoute = function () {
 			return currentMVC.route;
 		};
-		
+
 		that.getActiveView = function () {
 			return currentMVC.view;
 		};
-		
+
 		that.getActiveController = function () {
 			return currentMVC.ctrl;
-		};					
+		};
 
 		that.routeLoaded = function (options) {
 
@@ -161,13 +163,17 @@ define(function (require) {
 
 				// Disable transitions if view requests overwrite one another, eg when another view request is being processed still
 				if (callstack.length > 1) {
-					///console.log("+1")
-					//$.fx.off = true;
-					//$(options.target).stop(true, true);
+					if (_tempOptions.forceUnrender) {
+						_tempOptions.forceUnrender();
+					}
+
 					jqfade.off(true);
 					jqfade.stop();
 					reenableAnimationTracker.enable = false;
 				}
+				// Ractive unrender workaround. We store the current options temporarily so we can invoke forceUnrender, if the
+				// request is overwritten
+				_tempOptions = options;
 
 				var ctrl = that.createController(options.module);
 				options.ctrl = ctrl;
@@ -482,7 +488,7 @@ define(function (require) {
 					//options.view.transitionsEnabled = true;
 
 					if (currentMVC.view != null) {
-						currentMVC.view.transitionsEnabled = true;
+						//currentMVC.view.transitionsEnabled = true;
 					}
 					reject.apply(undefined, arguments);
 				});
@@ -501,6 +507,10 @@ define(function (require) {
 					fx: initOptions.fx || false
 				};
 
+				if (options.fx === true || options.fx === false) {
+					introOptions.fx = options.fx;
+				}
+
 				if (currentMVC.ctrl == null) {
 					introOptions.firstView = true;
 				}
@@ -510,9 +520,9 @@ define(function (require) {
 					introFn(introOptions).then(function () {
 						resolve(options.view);
 					}).catch(function (error, view) {
-					// introFn rejeced
-					reject.apply(undefined, [error, view]);
-				});
+						// introFn rejeced
+						reject.apply(undefined, [error, view]);
+					});
 
 				}).catch(function (error, view) {
 					// render Ractive rejeced
@@ -533,6 +543,9 @@ define(function (require) {
 					outro: initOptions.outro,
 					fx: initOptions.fx || false
 				};
+				if (options.fx === true || options.fx === false) {
+					outroOptions.fx = options.fx;
+				}
 
 				if (currentMVC.ctrl == null) {
 					outroOptions.firstView = true;
@@ -552,8 +565,8 @@ define(function (require) {
 						reject.apply(undefined, [error, view]);
 					});
 				}).catch(function (error) {
-						reject.apply(undefined, [error, options.mvc.view]);
-					});
+					reject.apply(undefined, [error, options.mvc.view]);
+				});
 			});
 
 			return promise;
@@ -569,7 +582,7 @@ define(function (require) {
 						// render Ractive rejeced
 						reject.apply(undefined, [error, view]);
 					});
-					
+
 				}).catch(function (error, view) {
 					// render Ractive rejeced
 					reject.apply(undefined, [error, view]);
@@ -601,7 +614,7 @@ define(function (require) {
 					// No view rendered yet, so we stub the leaveFn
 					leaveFn = function () {
 					};
-					leaveCleanupFn = utils.noopPromise;
+					leaveCleanupFn = function () {};
 
 				} else {
 
@@ -616,7 +629,7 @@ define(function (require) {
 						leaveFn = that.leave;
 
 						//Since we unrederView we don't need to perform unrenderCleanup, so we stub it out
-						leaveCleanupFn = utils.noopPromise;
+						leaveCleanupFn = function () {};
 
 						leaveOptions = options; // set leaveOptions to options, since we are going to use unrenderView instead
 					}
@@ -629,17 +642,15 @@ define(function (require) {
 
 				leavePromise.then(function () {
 
-					leaveCleanupFn(options).then(function () {
-						if (!options.mvc.requestTracker.active) {
-							reject.apply(undefined, ["Request overwritten by another view request [leaveCleanUp]", options.mvc.view]);
-							return;
-						}
+					leaveCleanupFn(options);
 
-						resolve();
+					if (!options.mvc.requestTracker.active) {
+						reject.apply(undefined, ["Request overwritten by another view request [leaveCleanUp]", options.mvc.view]);
+						return;
+					}
 
-					}).catch(function (error) {
-						reject.apply(undefined, [error, options.view]);
-					});
+					resolve();
+
 
 				}).catch(function () {
 					reject("Error during route.leave()");
@@ -673,7 +684,7 @@ define(function (require) {
 					//enterFn = that.renderView;
 
 					//Since we unrederView we don't need to perform unrenderCleanup, so we stub it out
-					enterCleanupFn = utils.noopPromise;
+					enterCleanupFn = function () {};
 
 					enterOptions = options; // set leaveOptions to options, since we are going to use unrenderView instead
 				}
@@ -685,12 +696,8 @@ define(function (require) {
 
 				enterPromise.then(function () {
 
-					enterCleanupFn(options).then(function () {
-						resolve(options.view);
-
-					}).catch(function (error) {
-						reject.apply(undefined, [error, options.view]);
-					});
+					enterCleanupFn(options);
+					resolve(options.view);
 
 				}).catch(function () {
 					reject("Error during route.enter()");
@@ -734,15 +741,11 @@ define(function (require) {
 
 				var renderPromise = initOptions.viewFactory.renderView(options);
 
+				that.renderViewCleanup(options);
+
 				renderPromise.then(function () {
 
-					that.renderViewCleanup(options).then(function () {
-
-						resolve(options.view);
-
-					}).catch(function (error) {
-						reject.apply(undefined, [error, options.view]);
-					});
+					resolve(options.view);
 
 				}).catch(function (error) {
 					reject.apply(undefined, [error, options.view]);
@@ -753,25 +756,12 @@ define(function (require) {
 		};
 
 		that.renderViewCleanup = function (options) {
-			var promise = new Promise(function (resolve, reject) {
 
-				// Store new controller and view on currentMVC
-				that.updateMVC(options);
+			// Store new controller and view on currentMVC
+			that.updateMVC(options);
 
-				//options.view.transitionsEnabled = true;
-
-				// Seems that Ractive render swallows errors so here we catch and log errors thrown by the render event
-				try {
-					that.callViewEvent("onRender", options);
-					that.triggerEvent("render", options);
-
-				} catch (error) {
-					reject(error);
-					return promise;
-				}
-				resolve();
-			});
-			return promise;
+			that.callViewEvent("onRender", options);
+			that.triggerEvent("render", options);
 		};
 
 		that.unrenderView = function (options) {
@@ -789,18 +779,15 @@ define(function (require) {
 					unrenderPromise.then(function () {
 						//options.mvc.view.unrender().then(function () {
 
-						that.unrenderViewCleanup(options).then(function () {
+						that.unrenderViewCleanup(options);
 
-							if (!options.mvc.requestTracker.active) {
-								reject.apply(undefined, ["Request overwritten by another view request in [unrenderView]", options.mvc.view]);
-								return;
-							}
+						if (!options.mvc.requestTracker.active) {
+							reject.apply(undefined, ["Request overwritten by another view request in [unrenderView]", options.mvc.view]);
+							return;
+						}
 
-							resolve(options.mvc.view);
+						resolve(options.mvc.view);
 
-						}).catch(function (error) {
-							reject.apply(undefined, [error, options.view]);
-						});
 
 					}).catch(function () {
 
@@ -814,21 +801,8 @@ define(function (require) {
 		};
 
 		that.unrenderViewCleanup = function (options) {
-			var promise = new Promise(function (resolve, reject) {
-
-				// Seems that Ractive unrender swallows errors so here we catch and log errors thrown by the unrender event
-				try {
-					that.callViewEvent("onUnrender", options);
-					that.triggerEvent("unrender", options);
-
-				} catch (error) {
-					reject(error);
-					return promise;
-				}
-
-				resolve();
-			});
-			return promise;
+			that.callViewEvent("onUnrender", options);
+			that.triggerEvent("unrender", options);
 		};
 
 		that.updateMVC = function (options) {
@@ -856,7 +830,6 @@ define(function (require) {
 			// We wait a bit before enabling animations in case user is still thrashing UI.
 			setTimeout(function () {
 				if (reenableAnimationTracker.enable) {
-					//$.fx.off = false;
 					jqfade.off(false);
 				}
 			}, 350);

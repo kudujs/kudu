@@ -324,10 +324,12 @@ var intro = function (options, done) {
 }
 ```
 
-options contain the following value:
+intro/outro options consists of the following values:
 ```javascript
 var options: {
-    target: // the CSS selector where the view was rendered to,
+    target:    // the CSS selector where the view was rendered to,
+    duration:  // specifies how long the transiton should execute, in milliseconds 
+    firstView: // (true/false) specifies if this is the first time a view is rendered
 };
 ```
 
@@ -882,6 +884,7 @@ var options = {
     force:             // true/false, force navigating to module even if there is no matching route specified
     updateUrl:         // true/false, specifies whether the browser's URL hash should be updated to the 
                        // controller we are navigating to.
+    fx:                // true/false, whether transition effects should be applied when rendering the view
     [globalEventName]: // a function that will be called for the specified event eg: veforeInit, init, remove,
                        // render, beforeUnrender, unrender, fail
 }

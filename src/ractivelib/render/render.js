@@ -6,11 +6,14 @@ define(function (require) {
 
 		var promise = new Promise(function (resolve, reject) {
 
-			options.view.transitionsEnabled = false;
+			//options.view.transitionsEnabled = false;
 
-			options.view.render(options.target).then(function () {
+			var completePromise = options.view.render(options.target);
+			//resolve(options.view);
 
-				options.view.transitionsEnabled = true;
+			completePromise.then(function () {
+
+				//options.view.transitionsEnabled = true;
 
 				resolve(options.view);
 

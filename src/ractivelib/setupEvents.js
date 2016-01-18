@@ -33,7 +33,7 @@ define(function (require) {
 
 		options.view.on('complete', function () {
 			// switch on transitions that was disabled in kudu during rendering of the view.
-			this.transitionsEnabled = true;
+			//this.transitionsEnabled = true;
 			/*
 			if (typeof options.ctrl.onComplete == 'function') {
 				options.ctrl.onComplete(viewOptions);
