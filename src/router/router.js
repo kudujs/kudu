@@ -233,7 +233,7 @@ define(function (require) {
 			}
 
 			if (moduleId == null) {
-				moduleId = ctrl.id;
+				moduleId = ctrl._kudu_id;
 			}
 
 			options.args = options.args || {};
