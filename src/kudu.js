@@ -25,7 +25,6 @@ define(function (require) {
 	var introFn = require("./transition/intro");
 	var outroFn = require("./transition/outro");
 	var ractiveViewFactory = require("./ractivelib/RactiveViewFactory");
-	//var unrenderView = require("./ractivelib/render/unrender");
 	var severity = require("./utils/severity");
 	var utils = require("./utils/utils");
 	var jqutils = require("./utils/jqr/jqutils");
@@ -122,6 +121,10 @@ define(function (require) {
 
 		that.go = function (options) {
 			router.go(options);
+		};
+
+		that.getId = function (obj) {
+			return obj._kudu_id;
 		};
 
 		that.getDefaultTarget = function () {

@@ -890,6 +890,11 @@ var options = {
 }
 ```
 
+Kudu.getId(object)
+------------------
+
+Kudu.Id(object) returns the object's id which is either the moduleId or the module's AMD path location
+
 Kudu.getDefaultTarget()
 -----------------------
 
