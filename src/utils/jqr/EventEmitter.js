@@ -360,7 +360,7 @@
      * @param {Array} [args] Optional array of arguments to be passed to each listener.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.emitEvent = function emitEvent(evt, args) {
+    proto.emitEvent = function emitEvent(that, evt, args) {
         var listenersMap = this.getListenersAsObject(evt);
         var listeners;
         var listener;
@@ -382,7 +382,7 @@
                         this.removeListener(evt, listener.listener);
                     }
 
-                    response = listener.listener.apply(this, args || []);
+                    response = listener.listener.apply(that, args || []);
 
                     if (response === this._getOnceReturnValue()) {
                         this.removeListener(evt, listener.listener);
@@ -407,9 +407,9 @@
      * @param {...*} Optional additional arguments to be passed to each listener.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.emit = function emit(evt) {
+    proto.emit = function emit(that, evt) {
         var args = Array.prototype.slice.call(arguments, 1);
-        return this.emitEvent(evt, args);
+        return this.emitEvent(that, evt, args);
     };
 
     /**
