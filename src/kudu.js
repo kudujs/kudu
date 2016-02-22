@@ -229,8 +229,8 @@ define(function (require) {
 			if (Module instanceof Function) {
 				// Instantiate new view
 				var result = new Module();
-				if (result.id == null) {
-					setId(result, Module.id);
+				if (result._kudu_id == null) {
+					setId(result, Module._kudu_id);
 				}
 				return result;
 
@@ -383,11 +383,11 @@ define(function (require) {
 			 };*/
 
 			var prefix = 'lc.';
-			that.emit(prefix + eventName, triggerOptions);
+			that.emit(options.view, prefix + eventName, triggerOptions);
 
 			// Call events defined as go() options
 			if (options[eventName]) {
-				options[eventName](triggerOptions);
+				options[eventName].call(options.view, triggerOptions);
 			}
 		};
 
@@ -878,8 +878,8 @@ define(function (require) {
 
 		function setId(obj, id) {
 			// Create an ID property which isn't writable or iteratable through for in loops.
-			if (!obj.id) {
-				Object.defineProperty(obj, "id", {
+			if (!obj._kudu_id) {
+				Object.defineProperty(obj, "_kudu_id", {
 					enumerable: false,
 					writable: false,
 					value: id

@@ -152,8 +152,9 @@ define(function (require) {
 					throw new Error("route must have a ctrl or moduleId defined!");
 				}
 
-				route.moduleId = route.ctrl.id;
+				route.moduleId = route.ctrl._kudu_id;
 			}
+
 			router.addRouteById(route);
 			return router;
 		},
@@ -266,7 +267,7 @@ define(function (require) {
 			}
 
 			if (route == null) {
-				console.error("No route matched request to Controller '" + ctrl.id + "'! Available routes for this controller: ");
+				console.error("No route matched request to Controller '" + ctrl._kudu_id + "'! Available routes for this controller: ");
 				for (var i = 0; i < ctrlRoutes.length; i++) {
 					var debugRoute = ctrlRoutes[i];
 					console.error("    ", debugRoute.path);
@@ -294,11 +295,11 @@ define(function (require) {
 
 			// TODO instead of throwing error for unsupported paths, we could remove the hash from the url and still render the Controller
 			if (routePath instanceof RegExp) {
-				throw new Error("Cannot route to controller '" + ctrl.id + "' since it's route path is a RegExp '" + routePath + "'");
+				throw new Error("Cannot route to controller '" + ctrl._kudu_id + "' since it's route path is a RegExp '" + routePath + "'");
 			}
 
 			if (routePath.indexOf('*') !== -1) {
-				throw new Error("Cannot route to controller '" + ctrl.id + "' since it's route path contains wildcards '*'. The given route for the controller is '" + routePath + "'");
+				throw new Error("Cannot route to controller '" + ctrl._kudu_id + "' since it's route path contains wildcards '*'. The given route for the controller is '" + routePath + "'");
 			}
 
 			var routeQueryParams = {};
@@ -333,7 +334,7 @@ define(function (require) {
 						var routeParamValue = routeParams[routePathKey];
 
 						if (routeParamValue == null || routeParamValue === '') {
-							throw new Error("Cannot route to controller '" + ctrl.id + "' since it's route requires the path parameter '"
+							throw new Error("Cannot route to controller '" + ctrl._kudu_id + "' since it's route requires the path parameter '"
 									+ routePathKey + "' but the only params provided are '" + JSON.stringify(routeParams) + "'");
 						}
 
@@ -363,13 +364,13 @@ define(function (require) {
 				if (routeQueryParams.hasOwnProperty(routeParamKey)) {
 					if (routeParams == null) {
 						// The route specifies a query param but no routeParams was provided
-						throw new Error("Cannot route to controller '" + ctrl.id + "' since it's route requires the query parameter '"
+						throw new Error("Cannot route to controller '" + ctrl._kudu_id + "' since it's route requires the query parameter '"
 								+ routeParamKey + "' but no routeParams was provided");
 					} else {
 						var routeParamValue = routeParams[routeParamKey];
 						if (routeParamValue === undefined) {
 							// TODO test this scenario
-							throw new Error("Cannot route to controller '" + ctrl.id + "' since it's route requires the query parameter '"
+							throw new Error("Cannot route to controller '" + ctrl._kudu_id + "' since it's route requires the query parameter '"
 									+ routeParamKey + "' but the only routeParams provided are '" + JSON.stringify(routeParams) + "'");
 						}
 					}
@@ -400,7 +401,7 @@ define(function (require) {
 		},
 		findRoutesForCtrl: function (module) {
 			var result = [];
-			var moduleId = module.id;
+			var moduleId = module._kudu_id;
 			for (var i = 0; i < routes.length; i++) {
 
 				var route = routes[i];
@@ -974,7 +975,8 @@ define(function (require) {
 		}
 	};
 
-	function resolveUnknownRoutes() {
+	function resolveUnknownRoutes(options) {
+
 		var promise = new Promise(function (resolve, reject) {
 
 			var hashIndex = window.location.href.indexOf('#');
