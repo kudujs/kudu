@@ -15,14 +15,6 @@ define(function (require) {
 
 		var queue = [];
 
-		var queueObj = {
-			fadeIn: false,
-			el: null,
-			cb: null,
-			requestId: null,
-			timeoutId: null,
-		};
-
 		that.off = function (val) {
 			fxOff = val;
 		};
@@ -63,6 +55,7 @@ define(function (require) {
 					queue.splice(i, 1);
 					break;
 				}
+				i--;
 			}
 		};
 
@@ -84,10 +77,12 @@ define(function (require) {
 
 			options.duration = calcDuration(options.duration);
 
-			queueObj = {
+			var queueObj = {
 				fadeIn: true,
 				el: el,
-				cb: cb
+				cb: cb,
+				requestId: null,
+				timeoutId: null
 			};
 			queue.push(queueObj);
 
@@ -139,10 +134,12 @@ define(function (require) {
 
 			options.duration = calcDuration(options.duration);
 
-			queueObj = {
+			var queueObj = {
 				fadeIn: false,
 				el: el,
-				cb: cb
+				cb: cb,
+				requestId: null,
+				timeoutId: null
 			};
 			queue.push(queueObj);
 
