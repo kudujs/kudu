@@ -1,6 +1,6 @@
 {
     "name": "kudu-js",
-    "version": "0.0.6",
+    "version": "0.0.5",
     "description": "A small MVC framework based on Ractive and AMD",
     "author": "Bob Schellink <sabob1@gmail.com>",
     "contributors": [{
