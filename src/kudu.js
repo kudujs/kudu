@@ -9,7 +9,7 @@
 //   complete  -> onComplete => complete           (new view)
 //   
 //   -----
-// viewFail - should this event be supported?
+// fail - should this event be supported?
 
 define(function (require) {
 
@@ -27,6 +27,7 @@ define(function (require) {
 	var ractiveViewFactory = require("./ractivelib/RactiveViewFactory");
 	var severity = require("./utils/severity");
 	var utils = require("./utils/utils");
+	var mode = require("./utils/mode");
 	var jqutils = require("./utils/jqr/jqutils");
 	var EventEmitter = require("./utils/jqr/EventEmitter");
 	var jqfade = require("./utils/jqr/fade");
@@ -34,6 +35,7 @@ define(function (require) {
 	function kudu() {
 
 		var that = new EventEmitter();
+		var origEmit = that.emit;
 
 		var reenableAnimationTracker = {enable: true};
 
@@ -80,7 +82,7 @@ define(function (require) {
 			initOptions = jqutils.extend({}, initOptions, options);
 			that.validateInitOptions(initOptions);
 
-			Ractive.DEBUG = initOptions.debug;
+			mode.DEBUG = Ractive.DEBUG = initOptions.debug;
 
 			router.on('routeload', function (routeOptions) {
 				if (that.getActiveRoute() == null) {
@@ -120,10 +122,19 @@ define(function (require) {
 		};
 
 		that.go = function (options) {
-			router.go(options);
+			// go() is asyncrounous
+			// We wait a tick in case we want to redirect by calling go() from Controller.onInit() { kudu.go(...); return null}. 
+			// If this function is not async, calling kudu.go from ctrl.onInit would cause two requests to run in parallel. By waiting a tick
+			// the original ctrl request can complete before loading the new route
+			setTimeout(function() {
+				router.go(options);
+			});
 		};
 
 		that.getId = function (obj) {
+			if (obj == null) {
+				return null;
+			}
 			return obj._kudu_id;
 		};
 
@@ -141,6 +152,10 @@ define(function (require) {
 
 		that.getActiveController = function () {
 			return currentMVC.ctrl;
+		};
+		
+		that.getDefaultViewFactory = function () {
+			return ractiveViewFactory;
 		};
 
 		that.routeLoaded = function (options) {
@@ -164,16 +179,8 @@ define(function (require) {
 				currentMVC.requestTracker = requestTracker;
 				options.mvc.requestTracker = requestTracker;
 
-				// Disable transitions if view requests overwrite one another, eg when another view request is being processed still
-				if (callstack.length > 1) {
-					if (_tempOptions.forceUnrender) {
-						_tempOptions.forceUnrender();
-					}
+				checkCallstack(_tempOptions);
 
-					jqfade.off(true);
-					jqfade.stop();
-					reenableAnimationTracker.enable = false;
-				}
 				// Ractive unrender workaround. We store the current options temporarily so we can invoke forceUnrender, if the
 				// request is overwritten
 				_tempOptions = options;
@@ -183,50 +190,68 @@ define(function (require) {
 				delete options.module;
 				//options.requestTracker = currentMVC.requestTracker;
 
-				if (currentMVC.ctrl == null) {
-					// No view rendered so skip removing the current view and just init the new view
-					processOnInit(options).then(function () {
+				loadView(options);
 
-					}).catch(function () {
-						// processOnInit failed
-						cancelCurrentRequest(options);
-
-						var arg1 = arguments[0];
-						if (arg1 != null && arg1.level < severity.ERROR) {
-						} else {
-							//TODO should viewFailed be called like this with args: var args = Array.slice.call( arguments );
-							viewFailed(options, arguments);
-						}
-					});
-
-				} else {
-
-					processOnRemove(options).then(function () {
-						processOnInit(options).then(function () {
-
-
-						}).catch(function () {
-							// processOnInit failed
-							cancelCurrentRequest(options);
-
-							var arg1 = arguments[0];
-							if (arg1 != null && arg1.level < severity.ERROR) {
-							} else {
-								//TODO should viewFailed be called like this with args: var args = Array.slice.call( arguments );
-								viewFailed(options, arguments);
-							}
-						});
-					}).catch(function () {
-						// processOnRemove failed
-						cancelCurrentRequest(options);
-						viewFailed(options, arguments);
-					});
-				}
-
-			} catch (e) {
-				viewFailed(options, [e]);
+			} catch (err) {
+				viewFailed(options, err);
 			}
 		};
+		
+		function loadView( options ) {
+			if ( currentMVC.ctrl == null ) {
+				loadInitialView(options);
+
+			} else {				
+				changeView(options);
+			}
+		}
+		
+		function loadInitialView( options ) {
+			// No view rendered so skip removing the current view and just init the new view
+			processOnInit( options ).then( function () {
+
+			} ).catch(function ( err ) {
+				// processOnInit failed
+				cancelCurrentRequest( options );
+				utils.populateError(err, severity.ERROR, options);
+				viewFailed( options, err );
+			} );
+		}
+
+		function changeView( options ) {
+			// Remove current view before loading new view
+
+			processOnRemove( options ).then( function () {
+				processOnInit( options ).then( function () {
+
+				} ).catch(function (err) {
+					// processOnInit failed
+					cancelCurrentRequest( options );
+					utils.populateError(err, severity.ERROR, options);
+					viewFailed( options, err );
+				} );
+
+			} ).catch(function (err) {
+				// processOnRemove failed
+				cancelCurrentRequest( options );
+				utils.populateError(err, severity.ERROR, options);
+				viewFailed( options, err );
+			} );
+		}
+		
+		function checkCallstack(options) {
+			// Disable transitions if view requests overwrite one another, eg when another view request is being processed still
+			if ( callstack.length > 1 ) {
+				if ( options.forceUnrender ) {
+					options.forceUnrender();
+				}
+
+				jqfade.off( true );
+				jqfade.stop();
+				reenableAnimationTracker.enable = false;
+			}
+		}
+		;
 
 		that.createController = function (Module) {
 			if (Module instanceof Function) {
@@ -260,16 +285,16 @@ define(function (require) {
 					that.triggerEvent("complete", options);
 					resolve(options.view);
 
-				}).catch(function (error, view) {
-					//viewFailed(options, [error]);
-					// render Ractive rejeced
-					//deferred.reject(error);
-					reject(error, view);
+				}).catch(function (err) {
+					utils.populateError(err, severity.ERROR, options);
+					reject(err);
 				});
 
 				// Request could have been overwritten by new request. Ensure this is still the active request
 				if (!options.mvc.requestTracker.active) {
-					reject.apply(undefined, ["Request overwritten by another view request in [ProcessNewView]", options.mvc.view]);
+					var err = new Error("Request overwritten by another view request");
+					utils.populateError(err, severity.WARN, options);
+					reject(err);
 				}
 			});
 
@@ -315,9 +340,20 @@ define(function (require) {
 			}
 		};
 
+		that.emit = function(that, evt) {
+			if (typeof that === 'string') {
+				var args = Array.prototype.slice.call(arguments);
+				args.unshift(this);
+				return origEmit.apply(this, args);
+			}
+			origEmit.apply(this, arguments);
+			//(options.view, prefix + eventName, triggerOptions);
+		};
+
 		that.triggerEvent = function (eventName, options) {
 			options = options || {};
 			options.mvc = options.mvc || {};
+			var context = null;
 
 			var isMainCtrlReplaced = initOptions.target === options.target;
 
@@ -362,15 +398,25 @@ define(function (require) {
 			if (eventName === 'remove' || eventName === 'beforeUnrender' || eventName === 'unrender') {
 				triggerOptions = prevOptions;
 				triggerOptions.next = currOptions;
+				context = prevOptions.view;
 
 			} else if (eventName === 'fail') {
 				triggerOptions = prevOptions;
-				triggerOptions.prev = prevOptions;
+				triggerOptions.prev = jqutils.extend({}, prevOptions); // triggerOptions references prevOptions, so make a reference to a
+				// copy of preOptions instead of prevOptions itself, otherwise this creates a recursive link
 				triggerOptions.next = currOptions;
+				triggerOptions.error = options.error;
+				
+				if (prevOptions.view) {
+					context = prevOptions.view;
+				} else {
+					context = currOptions.view;
+				}
 
 			} else {
 				triggerOptions = currOptions;
 				triggerOptions.prev = prevOptions;
+				context = currOptions.view;
 			}
 
 			/*
@@ -386,11 +432,11 @@ define(function (require) {
 			 };*/
 
 			var prefix = 'lc.';
-			that.emit(options.view, prefix + eventName, triggerOptions);
+			that.emit(context, prefix + eventName, triggerOptions);
 
 			// Call events defined as go() options
 			if (options[eventName]) {
-				options[eventName].call(options.view, triggerOptions);
+				options[eventName].call(context, triggerOptions);
 			}
 		};
 
@@ -430,25 +476,28 @@ define(function (require) {
 							onInitComplete();
 							resolve();
 
-						}).catch(function () {
+						}).catch(function (err) {
 							// processNewView rejected
 							onInitComplete();
-							reject.apply(undefined, arguments);
+
+							utils.populateError(err, severity.ERROR, options);
+							reject(err);
 						});
 
-					}).catch(function () {
+					}).catch(function (err) {
 						// view creation rejected
 						onInitComplete();
-						reject.apply(undefined, arguments);
-						//deferred.reject(arguments);
+						
+						utils.populateError(err, severity.ERROR, options);
+						reject(err);
 					});
 
-				}).catch(function () {
+				}).catch(function (err) {
 					// onInitHandler rejected
-
 					onInitComplete();
-					reject.apply(undefined, arguments);
-					//deferred.reject(arguments);
+
+					utils.populateError(err, severity.ERROR, options);					
+					reject(err);
 				});
 			});
 
@@ -486,14 +535,11 @@ define(function (require) {
 
 					resolve();
 
-				}).catch(function () {
+				}).catch(function (err) {
 					// ctrl.onRemove failed or cancelled
-					//options.view.transitionsEnabled = true;
 
-					if (currentMVC.view != null) {
-						//currentMVC.view.transitionsEnabled = true;
-					}
-					reject.apply(undefined, arguments);
+					utils.populateError(err, severity.ERROR, options);
+					reject(err);
 				});
 			});
 
@@ -501,6 +547,11 @@ define(function (require) {
 		}
 
 		that.enter = function (options) {
+			// In case enter is called from a customized user option eg route.enter we check if _origOptions was set and use that instead of options
+			if (options._origOptions) {
+				options = options._origOptions;
+			}
+
 			var promise = new Promise(function (resolve, reject) {
 
 				var introOptions = {
@@ -519,17 +570,25 @@ define(function (require) {
 				}
 
 				that.renderView(options).then(function () {
+					// In case this method is called from a customized user option eg route.leave we check if _origOptions was set and use that instead of options
+					if ( options._origOptions ) {
+						options = options._origOptions;
+					}
 
 					introFn(introOptions).then(function () {
+
 						resolve(options.view);
-					}).catch(function (error, view) {
+
+					}).catch(function (err) {
 						// introFn rejeced
-						reject.apply(undefined, [error, view]);
+						utils.populateError(err, severity.ERROR, options);
+						reject(err);
 					});
 
-				}).catch(function (error, view) {
+				}).catch(function (err) {
 					// render Ractive rejeced
-					reject.apply(undefined, [error, view]);
+					utils.populateError(err, severity.ERROR, options);
+					reject(err);
 				});
 			});
 
@@ -537,6 +596,10 @@ define(function (require) {
 		};
 
 		that.leave = function (options) {
+			// In case leave is called from a customized user option eg route.leave we check if _origOptions was set and use that instead of options
+			if (options._origOptions) {
+				options = options._origOptions;
+			}
 
 			var promise = new Promise(function (resolve, reject) {
 
@@ -557,18 +620,24 @@ define(function (require) {
 
 				outroFn(outroOptions).then(function () {
 					if (!options.mvc.requestTracker.active) {
-						reject.apply(undefined, ["Request overwritten by another view request in [outro]", options.mvc.view]);
+						var err = new Error("Request overwritten by another view request")
+						utils.populateError(err, severity.WARN, options);
+						reject(err);
 						return;
 					}
 
 					that.unrenderView(options).then(function () {
 						resolve(options.view);
 
-					}).catch(function (error, view) {
-						reject.apply(undefined, [error, view]);
+					}).catch(function (err) {
+						utils.populateError(err, severity.ERROR, options);
+						reject(err);
 					});
-				}).catch(function (error) {
-					reject.apply(undefined, [error, options.mvc.view]);
+
+				}).catch(function (err) {
+
+					 utils.populateError(err, severity.ERROR, options);
+						reject(err);
 				});
 			});
 
@@ -576,19 +645,29 @@ define(function (require) {
 		};
 
 		that.renderViewWithAnimation = function (options) {
+			// In case this method is called from a customized user option eg route.leave we check if _origOptions was set and use that instead of options
+			if ( options._origOptions ) {
+				options = options._origOptions;
+			}
+					
 			var promise = new Promise(function (resolve, reject) {
 
 				that.leave(options).then(function () {
+
 					that.enter(options).then(function () {
 						resolve(options.view);
-					}).catch(function (error, view) {
-						// render Ractive rejeced
-						reject.apply(undefined, [error, view]);
+
+					}).catch(function (err) {
+						// enter rejeced
+						utils.populateError(err, severity.ERROR, options);
+						reject(err);
 					});
 
-				}).catch(function (error, view) {
+				}).catch(function (err) {
 					// render Ractive rejeced
-					reject.apply(undefined, [error, view]);
+					utils.populateError(err, severity.ERROR, options);
+					reject(err);
+
 				});
 			});
 
@@ -602,12 +681,13 @@ define(function (require) {
 					ctrl: currentMVC.ctrl,
 					view: currentMVC.view,
 					route: currentMVC.route,
+					target: options.target,
+					_origOptions: options,
 					next: {
 						ctrl: options.ctrl,
 						view: options.view,
 						route: options.route,
-					},
-					target: options.target
+					}
 				};
 
 				var leaveFn;
@@ -648,15 +728,18 @@ define(function (require) {
 					leaveCleanupFn(options);
 
 					if (!options.mvc.requestTracker.active) {
-						reject.apply(undefined, ["Request overwritten by another view request [leaveCleanUp]", options.mvc.view]);
+						var err = new Error("Request overwritten by another view request");
+						utils.populateError(err, severity.WARN, options);
+						reject(err);
 						return;
 					}
 
 					resolve();
 
 
-				}).catch(function () {
-					reject("Error during route.leave()");
+				}).catch(function (err) {
+					utils.populateError(err, severity.ERROR, options);
+					reject(err);
 				});
 			});
 
@@ -670,26 +753,26 @@ define(function (require) {
 					ctrl: options.ctrl,
 					view: options.view,
 					route: options.route,
+					target: options.target,
+					_origOptions: options,
 					prev: {
 						ctrl: currentMVC.ctrl,
 						view: currentMVC.view,
 						route: currentMVC.route
-					},
-					target: options.target
+					}
 				};
 
 				var enterFn = options.route.enter;
 				var enterCleanupFn = that.renderViewCleanup;
 
-				// If enter not defined, fallback to renderView
+				// If enter not defined, fallback to that.enter
 				if (enterFn == null) {
 					enterFn = that.enter;
-					//enterFn = that.renderView;
 
-					//Since we unrederView we don't need to perform unrenderCleanup, so we stub it out
+					//Since we rederView we don't need to perform renderCleanup, so we stub it out
 					enterCleanupFn = function () {};
 
-					enterOptions = options; // set leaveOptions to options, since we are going to use unrenderView instead
+					enterOptions = options; // set leaveOptions to options, since we are going to use that.enter instead
 				}
 
 				var enterPromise = enterFn(enterOptions);
@@ -702,8 +785,9 @@ define(function (require) {
 					enterCleanupFn(options);
 					resolve(options.view);
 
-				}).catch(function () {
-					reject("Error during route.enter()");
+				}).catch(function (err) {
+					utils.populateError(err, severity.ERROR, options);
+					reject(err);
 				});
 			});
 
@@ -720,12 +804,14 @@ define(function (require) {
 
 						resolve(options.view);
 
-					}).catch(function (error, view) {
-						reject.apply(undefined, [error, view]);
+					}).catch(function (err) {
+						utils.populateError(err, severity.ERROR, options);
+						reject(err);
 					});
 
-				}).catch(function (error, view) {
-					reject.apply(undefined, [error, view]);
+				}).catch(function (err) {
+					utils.populateError(err, severity.ERROR, options);
+					reject(err);
 				});
 			});
 
@@ -733,11 +819,21 @@ define(function (require) {
 		};
 
 		that.createView = function (options) {
+			// In case this method is called from a customized user option eg route.leave we check if _origOptions was set and use that instead of options
+			if ( options._origOptions ) {
+				options = options._origOptions;
+			}
+
 			var promise = initOptions.viewFactory.createView(options);
 			return promise;
 		};
 
 		that.renderView = function (options) {
+			// In case this method is called from a customized user option eg route.leave we check if _origOptions was set and use that instead of options
+			if ( options._origOptions ) {
+				options = options._origOptions;
+			}
+
 			var promise = new Promise(function (resolve, reject) {
 
 				//options.view.transitionsEnabled = false;
@@ -750,8 +846,9 @@ define(function (require) {
 
 					resolve(options.view);
 
-				}).catch(function (error) {
-					reject.apply(undefined, [error, options.view]);
+				}).catch(function (err) {
+					utils.populateError(err, severity.ERROR, options);
+					reject(err);
 				});
 			});
 
@@ -759,6 +856,13 @@ define(function (require) {
 		};
 
 		that.renderViewCleanup = function (options) {
+			// Users can provide their own route.enter function, which if provided, Kudu will automatically invoke renderViewCleanup.
+			// However users can provide their own route.enter and "delegate" to kudu.enter, which will cause renderViewCleanup to be
+			// called twice. Here we add a flag to guard against this
+			if (options._renderViewCleanupCalled) {
+				return;
+			}
+			options._renderViewCleanupCalled = true;
 
 			// Store new controller and view on currentMVC
 			that.updateMVC(options);
@@ -768,6 +872,11 @@ define(function (require) {
 		};
 
 		that.unrenderView = function (options) {
+			// In case this method is called from a customized user option eg route.leave we check if _origOptions was set and use that instead of options
+			if ( options._origOptions ) {
+				options = options._origOptions;
+			}
+					
 			var promise = new Promise(function (resolve, reject) {
 
 				if (options.mvc.view == null) {
@@ -785,17 +894,18 @@ define(function (require) {
 						that.unrenderViewCleanup(options);
 
 						if (!options.mvc.requestTracker.active) {
-							reject.apply(undefined, ["Request overwritten by another view request in [unrenderView]", options.mvc.view]);
+							var err = new Error("Request overwritten by another view request");
+							utils.populateError(err, severity.WARN, options);
+							reject(err);
 							return;
 						}
 
 						resolve(options.mvc.view);
 
 
-					}).catch(function () {
-
-						reject(options.mvc.view);
-
+					}).catch(function (err) {
+						utils.populateError(err, severity.ERROR, options);
+						reject(err);
 					});
 				}
 			});
@@ -804,6 +914,14 @@ define(function (require) {
 		};
 
 		that.unrenderViewCleanup = function (options) {
+			// Users can provide their own route.leave function, which if provided, Kudu will automatically invoke unrenderViewCleanup.
+			// However users can provide their own route.leave and "delegate" to kudu.leave, which will cause unrenderViewCleanup to be
+			// called twice. Here we add a flag to guard against this
+			if (options._unrenderViewCleanupCalled) {
+				return;
+			}
+			options._unrenderViewCleanupCalled = true;
+
 			that.callViewEvent("onUnrender", options);
 			that.triggerEvent("unrender", options);
 		};
@@ -838,15 +956,22 @@ define(function (require) {
 			}, 350);
 		}
 
-		function viewFailed(options, errorArray) {
+		function viewFailed(options, err) {
+			/*
 			var errors = errorArray;
 			if (!Array.isArray(errorArray)) {
 				errors = Array.prototype.slice.call(errorArray);
-			}
-			options.error = errors;
-			that.triggerEvent("viewFail", options);
+			}*/
+			options.error = err;
+			that.triggerEvent("fail", options);
+			utils.logError(err);
+			//console.error(err)
 
-			if (initOptions.debug) {
+			//if (initOptions.debug) {
+				
+				
+				/*
+			}
 				if (options.error.length === 0) {
 					console.error("error occurred!", options);
 
@@ -860,8 +985,8 @@ define(function (require) {
 							console.error(options.error[i].stack);
 						}
 					}
-				}
-			}
+				}*/
+			//}
 		}
 
 		function cancelCurrentRequest(options) {

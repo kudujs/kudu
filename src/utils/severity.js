@@ -4,7 +4,7 @@ define(function (require) {
 
 		this.DEBUG = 0;
 		this.INFO = 1;
-		this.WARNING = 2;
+		this.WARN = 2;
 		this.ERROR = 3;
 	}
 

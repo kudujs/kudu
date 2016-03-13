@@ -420,6 +420,9 @@ function, Kudu will delegate the rendering and animation of the view to that fun
 The _enter_ function can return a Promise instance in order to perform animations on the view. Kudu will wait until the promise resolves
 before continuing with other work.
 
+__NOTE__ if you provide your own _enter_ function and delegate to kudu's own _enter_ function you **must** return the promise from
+_kudu.enter_, otherwise kudu will not wait for the _kudu.enter_ function to complete processing and errors could occur.
+
 Example enter function:
 
 ```javascript
@@ -468,6 +471,9 @@ When providing a _leave_ function, Kudu will delegate the unrendering and animat
 
 The _leave_ function can return a Promise instance in order to perform animations on the view. Kudu will wait until the promise resolves
 before continuing with other work.
+
+__NOTE__ if you provide your own _leave_ function and delegate to kudu's own _leave_ function you **must** return the promise from
+_kudu.leave_, otherwise kudu will not wait for the _kudu.leave_ function to complete processing and errors could occur.
 
 Example leave function:
 
@@ -683,9 +689,10 @@ options = {
                   // it means the new controller is a sub view on another controller
 		eventName   : // name of the event which fired
 		error       : // optionally specifies an error (an array of error messages) if an error occurred
-    next/prev: {    // the next or previous controller options - prev for for beforeInit, init, render and
-                    // complete, next for remove,  beforeUnrender and unrender.
-                    // viewFail has both next and prev
+    next/prev: {    // the next or previous controller options 
+                    // - "prev" for for beforeInit, init, render and complete.
+                    // - "next" for remove,  beforeUnrender and unrender.
+                    // 'fail' has both "next" and "prev" options, depending on where in the lifecycle the error occurred.
         ajaxTracker: // the ajaxTracker of the prev/next controller
         args:        // arguments passed to the prev/next controller
         ctrl:        // The prev/next controller instance
@@ -928,6 +935,7 @@ Building Kudu
 -------------
 To build kudu, perform the following steps:
 ```
+Update the "version" property in ./package.json
 cd jsbuild
 npm install
 node build

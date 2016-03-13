@@ -1,7 +1,8 @@
 define(function (require) {
 
 	require("../../utils/jqr/npo");
-	var ractive = require("ractive");
+	var utils = require("../../utils/utils");
+	var severity = require("../../utils/severity");
 
 	function unrender(options) {
 
@@ -23,8 +24,9 @@ define(function (require) {
 
 				resolve(options.view);
 
-			}).catch(function (error) {
-				reject.apply(undefined, [error, options.view]);
+			}).catch(function (err) {
+				utils.populateError( err, severity.ERROR, options );
+				reject( err );
 			});
 		});
 

@@ -3,6 +3,7 @@ define(function (require) {
     require("../jqr/npo");
     var jqxhrWrapper = require("./jqxhrWrapper");
     var xhrWrapper = require("./xhrWrapper");
+	var deferredPromiseWrapper = require("./deferredPromiseWrapper");
     var jqutils = require("../jqr/jqutils");
 
     function ajaxTracker(options) {
@@ -21,7 +22,8 @@ define(function (require) {
 
         var wrappers = {
             xhr: xhrWrapper,
-            jqxhr: jqxhrWrapper
+            jqxhr: jqxhrWrapper,
+			deferredPromise: deferredPromiseWrapper,
         };
 
         wrappers = jqutils.extend(wrappers, options.wrappers);
@@ -164,6 +166,7 @@ define(function (require) {
         function addListeners(target, globalPromiseParam, promiseParam, args) {
 
             promiseParam.then(function (value) {
+				value = value || {};
 
                 var triggerOptions;
 
@@ -176,12 +179,13 @@ define(function (require) {
                     if (arguments.length > 0) {
                         promiseArgs = Array.prototype.slice.call(arguments);
                     }
-                    triggerOptions = {data: null, status: null, xhr: null, error: null, args: args, promiseArgs: promiseArgs};
+					triggerOptions = {data: value, status: null, xhr: null, error: null, args: args, promiseArgs: promiseArgs};
                 }
 
                 options.kudu.emit("ajax.success", triggerOptions);
 
             }).catch(function (reason) {
+				reason = reason || {};
 
                 var triggerOptions;
 
@@ -194,32 +198,31 @@ define(function (require) {
                     if (arguments.length > 0) {
                         promiseArgs = Array.prototype.slice.call(arguments);
                     }
-                    triggerOptions = {data: null, status: null, xhr: null, error: null, args: args, promiseArgs: promiseArgs};
+                    triggerOptions = {data: null, status: null, xhr: null, error: reason, args: args, promiseArgs: promiseArgs};
                 }
 
                 options.kudu.emit("ajax.error", triggerOptions);
             });
 
             promiseParam.then(function (value) {
+				value = value || {};
+			
                 always(value, true);
+
             }).catch(function (reason) {
+				reason = reason || {};
+
                 always(reason, false);
             });
 
             function always(value, success) {
+				value = value || {};
+			
                 // Note: the promise might not be an ajax request at all!
 
                 var triggerOptions;
 
-                if (!isXhr(value.xhr)) {
-                    // Not sure about the use case of Promises with AjaxTracker
-                    var promiseArgs;
-                    if (arguments.length > 0) {
-                        promiseArgs = Array.prototype.slice.call(arguments);
-                    }
-                    triggerOptions = {data: null, status: null, xhr: null, error: null, args: args, promiseArgs: promiseArgs};
-
-                } else {
+                if ( isXhr( value.xhr )) {
 
                     if (success === true) {
                         triggerOptions = {data: value.data, status: value.status, xhr: value.xhr, error: null, args: args};
@@ -227,6 +230,15 @@ define(function (require) {
                     } else {
                         triggerOptions = {data: null, status: value.status, xhr: value.xhr, error: value.error, args: args};
                     }
+
+                } else {
+                    // Not sure about the use case of Promises with AjaxTracker
+                    var promiseArgs;
+                    if (arguments.length > 0) {
+                        promiseArgs = Array.prototype.slice.call(arguments);
+                    }
+                    triggerOptions = {data: value, status: value.status, xhr: value.xhr, error: value.error, args: args, promiseArgs: promiseArgs};
+
                 }
 
                 options.kudu.emit("ajax.complete", triggerOptions);
@@ -235,6 +247,7 @@ define(function (require) {
             }
 
             globalPromiseParam.then(function (value) {
+				value = value || {};
 
                 var triggerOptions;
 
@@ -247,7 +260,7 @@ define(function (require) {
                     if (arguments.length > 0) {
                         promiseArgs = Array.prototype.slice.call(arguments);
                     }
-                    triggerOptions = {data: null, status: null, xhr: null, error: null, args: args, promiseArgs: promiseArgs};
+                    triggerOptions = {data: value, status: null, xhr: null, error: null, args: args, promiseArgs: promiseArgs};
                 }
 
                 // Only process if this is the globalPromise, otherwise globalPromise has been overwritten
@@ -258,13 +271,12 @@ define(function (require) {
                     delete triggerOptions.args;
                     options.kudu.emit("global.ajax.stop", triggerOptions);
                     globalPromise = null;
-                    //globalPromiseArgs = {};
                 } else {
-                    //console.log("globalPromise ignore then");
                     options.kudu.emit("ajax.stop", triggerOptions);
                 }
 
             }).catch(function (reason) {
+				reason = reason || {};
 
                 var triggerOptions;
 
@@ -278,7 +290,7 @@ define(function (require) {
                         promiseArgs = Array.prototype.slice.call(arguments);
                     }
 
-                    triggerOptions = {data: null, status: null, xhr: null, error: null, args: args, promiseArgs: promiseArgs};
+                    triggerOptions = {data: null, status: null, xhr: null, error: reason, args: args, promiseArgs: promiseArgs};
                 }
 
                 if (globalPromise == null || globalPromise == globalPromiseParam) {

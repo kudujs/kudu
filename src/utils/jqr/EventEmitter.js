@@ -361,6 +361,7 @@
      * @return {Object} Current instance of EventEmitter for chaining.
      */
     proto.emitEvent = function emitEvent(that, evt, args) {
+		// NOTE: customized this method
         var listenersMap = this.getListenersAsObject(evt);
         var listeners;
         var listener;
@@ -408,6 +409,7 @@
      * @return {Object} Current instance of EventEmitter for chaining.
      */
     proto.emit = function emit(that, evt) {
+		// NOTE: customized this method
         var args = Array.prototype.slice.call(arguments, 2);
         return this.emitEvent(that, evt, args);
     };

@@ -172,6 +172,7 @@ define(function (require) {
 		};
 
 		function calcDuration(duration) {
+			//return 4000;
 			if (typeof duration !== "number") {
 				duration = duration in speeds ? speeds[duration] : speeds.default;
 			}

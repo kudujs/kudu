@@ -30,6 +30,7 @@ define(function (require) {
 
 	require("../utils/jqr/npo");
 	var utils = require("../utils/utils");
+	var severity = require("../utils/severity");
 	var jqutils = require("../utils/jqr/jqutils");
 
 	// Private closure variables
@@ -59,6 +60,8 @@ define(function (require) {
 
 	var currentHash;
 
+	var previousHash; // in case of an error and we need to revert to previous hash
+
 	// In some modern browsers a hashchange also fires a popstate. There isn't a check to see if the browser will fire
 	// one or both. We have to keep track of the previous state to prevent it from fireing a statechange twice.
 	var previousState = '';
@@ -71,6 +74,7 @@ define(function (require) {
 				return;
 			}
 
+			previousHash = currentHash;
 			currentHash = router.getHash();
 			router.fire('statechange');
 		}
@@ -82,6 +86,7 @@ define(function (require) {
 	var router = {
 		// router.init([options]) - initializes the router
 		init: function (options) {
+			previousHash = currentHash;
 			currentHash = router.getHash();
 			if (typeof (options) === 'undefined') {
 				options = {};
@@ -215,6 +220,19 @@ define(function (require) {
 				}
 			}
 			return router;
+		},
+		
+		/*
+		 * Restores the current hash to the previous hash. This call won't fire a view reload, only the browser hash will be changed.
+		 */
+		restorePreviousHash: function() {
+			if (previousHash == null) {
+				return;
+			}
+
+			currentHash = previousHash;
+			setIgnoreHashChangeOnce(currentHash);
+			router.setHash(currentHash);
 		},
 		go: function (options) {
 
@@ -493,7 +511,7 @@ define(function (require) {
 					options.route = newRoute;
 					router.loadUnknownRoute(options);
 
-				}).catch(function () {
+				}).catch(function (err) {
 					// Rejected. try and load the route that was found previously which is probably the '*' mapping.
 					if (options.route != null) {
 						router.loadModule(options);
@@ -1011,8 +1029,8 @@ define(function (require) {
 				};
 				resolve(newRoute);
 
-			}, function () {
-				reject();
+			}, function (err) {
+				reject(err);
 
 			});
 		});
