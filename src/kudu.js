@@ -162,6 +162,7 @@ define(function (require) {
 
 			try {
 				callstack.push(1);
+				console.log("1) route loaded", callstack.length)
 
 				options.target = options.target || initOptions.target;
 				options.routeParams = options.routeParams || {};
@@ -184,6 +185,7 @@ define(function (require) {
 				// Ractive unrender workaround. We store the current options temporarily so we can invoke forceUnrender, if the
 				// request is overwritten
 				_tempOptions = options;
+				//console.log("2) tempOptios setup", _tempOptions.forceUnrender, options.forceUnrender);
 
 				var ctrl = that.createController(options.module);
 				options.ctrl = ctrl;
@@ -245,6 +247,8 @@ define(function (require) {
 				if ( options.forceUnrender ) {
 					options.forceUnrender();
 				}
+				
+				options.view.transitionsEnabled = false;
 
 				jqfade.off( true );
 				jqfade.stop();
@@ -889,6 +893,7 @@ define(function (require) {
 					var unrenderPromise = initOptions.viewFactory.unrenderView(options);
 
 					unrenderPromise.then(function () {
+						console.log("3) old viewUnrendered", options.forceUnrender, _tempOptions.forceUnrender)
 						//options.mvc.view.unrender().then(function () {
 
 						that.unrenderViewCleanup(options);
@@ -941,18 +946,22 @@ define(function (require) {
 				// Delay switching on animation incase user is still clicking furiously
 				reenableAnimationTracker.enable = false;
 				reenableAnimationTracker = {enable: true};
-				reenableAnimations(reenableAnimationTracker);
+				reenableAnimationsAfterDelay(reenableAnimationTracker);
 			} else {
 				//console.log("AT ", callstack.length);
 			}
 		}
 
-		function reenableAnimations(reenableAnimationTracker) {
+		function reenableAnimationsAfterDelay(reenableAnimationTracker) {
 			// We wait a bit before enabling animations in case user is still thrashing UI.
 			setTimeout(function () {
 				if (reenableAnimationTracker.enable) {
-					jqfade.off(false);
+					/*
+					if (currentMVC.view != null) {
+						options.view.transitionsEnabled = true;
+					}*/
 				}
+				jqfade.off(false);
 			}, 350);
 		}
 
